@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+cloudflared.exe
+public/images/cards/
+comparison_report.json
+

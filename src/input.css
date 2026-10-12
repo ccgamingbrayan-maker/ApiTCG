@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  body {
+    background-color: #030712;
+    color: #f9fafb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #030712;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1f2937;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+}
+
+/* ─── INSIGNIAS DE RAREZA OFICIALES ─── */
+.rarity-badge, .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.badge.set {
+  background-color: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.badge.number {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* MANGA (Super Parallel) */
+.rarity-manga {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(245, 158, 11, 0.35) 100%);
+  color: #fef08a;
+  border: 1px solid rgba(245, 158, 11, 0.75);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+/* SP (Special Rare) */
+.rarity-sp {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(236, 72, 153, 0.25) 100%);
+  color: #f3e8ff;
+  border: 1px solid rgba(192, 132, 252, 0.7);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);
+}
+
+/* L-AA (Líder Alternate Art) */
+.rarity-laa {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.3) 0%, rgba(185, 28, 28, 0.35) 100%);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.65);
+}
+
+/* SEC-AA / SR-AA / R-AA / AA */
+.rarity-sec-aa, .rarity-sraa, .rarity-raa, .rarity-aa {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%);
+  color: #e0e7ff;
+  border: 1px solid rgba(129, 140, 248, 0.55);
+}
+
+/* DON!! */
+.rarity-don {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.3) 100%);
+  color: #fde047;
+  border: 1px solid rgba(245, 158, 11, 0.6);
+}
+
+/* Rarezas base */
+.rarity-sec {
+  background: rgba(147, 51, 234, 0.2);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+.rarity-sr {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+.rarity-r {
+  background: rgba(14, 165, 233, 0.2);
+  color: #7dd3fc;
+  border: 1px solid rgba(14, 165, 233, 0.4);
+}
+.rarity-uc {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.rarity-c {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.rarity-l {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.rarity-p {
+  background: rgba(236, 72, 153, 0.2);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.4);
+}
+
+/* Spinner */
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Escáner en vivo con cámara */
+@keyframes laser-move {
+  0% { top: 6%; opacity: 0.2; }
+  50% { top: 92%; opacity: 1; }
+  100% { top: 6%; opacity: 0.2; }
+}
+
+.animate-laser {
+  animation: laser-move 2.2s ease-in-out infinite;
+}
+
+.hidden {
+  display: none !important;
+}

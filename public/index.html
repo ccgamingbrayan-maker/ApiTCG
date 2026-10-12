@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One Piece TCG | Catálogo & Analizador de Mercado</title>
+  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <meta name="theme-color" content="#0284c7">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- ─── TOPBAR DE APLICACIÓN (ESTILO TCGPLAYER / COLLECTR) ──────────────── -->
+  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 lg:px-6 py-2.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Logo y Nombre de Aplicación -->
+      <div class="flex items-center gap-3 cursor-pointer select-none" id="brandLogo">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+          <i class="fa-solid fa-skull-crossbones text-base"></i>
+        </div>
+        <div class="hidden sm:block">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-base tracking-tight text-white">OP-TCG</span>
+            <span class="text-xs px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 font-semibold border border-sky-500/20">PRO</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-none">Catálogo & Precios TCGPlayer</p>
+        </div>
+      </div>
+
+      <!-- Buscador Universal Superior -->
+      <div class="flex-1 max-w-2xl mx-2">
+        <div class="relative flex items-center w-full bg-slate-950/80 border border-slate-800 hover:border-slate-700 focus-within:border-sky-500 rounded-lg px-3 py-1.5 transition shadow-inner">
+          <i class="fa-solid fa-magnifying-glass text-slate-400 text-sm mr-2.5"></i>
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Buscar por carta o código (ej. Luffy OP01, EB01-006, Zoro, DON)..." 
+            class="bg-transparent text-sm text-slate-100 placeholder-slate-500 outline-none w-full"
+            autocomplete="off"
+          >
+          
+          <!-- Escáner de Cartas en Vivo / Cámara -->
+          <button type="button" id="btnOpenScanner" class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/30 text-sky-200 hover:text-white text-xs font-semibold cursor-pointer transition mr-2" title="Escanear carta en vivo con la cámara">
+            <i class="fa-solid fa-camera text-sky-400"></i>
+            <span class="hidden sm:inline">Escanear</span>
+          </button>
+          <input type="file" id="imageInput" accept="image/*" class="hidden">
+
+          <button id="searchBtn" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition shadow-sm">
+            Buscar
+          </button>
+        </div>
+      </div>
+
+      <!-- Pestañas de Navegación & Utilidades -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Pestañas -->
+        <nav class="flex items-center bg-slate-950 border border-slate-800/80 rounded-lg p-1 text-xs font-medium">
+          <button id="tabMarket" class="dash-tab active px-3 py-1.5 rounded-md text-slate-300 hover:text-white flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-table-cells-large text-sky-400"></i>
+            <span class="hidden md:inline">Catálogo</span>
+          </button>
+          <button id="tabCollection" class="dash-tab px-3 py-1.5 rounded-md text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-folder text-indigo-400"></i>
+            <span class="hidden md:inline">Expansiones</span>
+          </button>
+          <button id="tabInventory" class="dash-tab px-3 py-1.5 rounded-md text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-box-archive text-amber-400"></i>
+            <span class="hidden md:inline">Inventario</span>
+          </button>
+          <button id="tabDecks" class="dash-tab px-3 py-1.5 rounded-md text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-layer-group text-purple-400"></i>
+            <span class="hidden md:inline">Decks</span>
+          </button>
+        </nav>
+
+        <!-- TRM COP Widget -->
+        <div class="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-950/60 border border-slate-800 rounded-lg text-xs font-medium text-slate-300" title="Tasa Representativa del Mercado Oficial">
+          <i class="fa-solid fa-coins text-emerald-400 text-xs"></i>
+          <span id="topbarTrmVal" class="text-slate-200">TRM...</span>
+        </div>
+
+        <!-- Botón rápido registrar -->
+        <button id="btnHeaderQuickAdd" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm">
+          <i class="fa-solid fa-plus"></i>
+          <span class="hidden sm:inline">Registrar</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ─── CUERPO PRINCIPAL ──────────────────────────────────────────────── -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         SECCIÓN 1: CATÁLOGO Y ANÁLISIS DE MERCADO (ESTILO TCGPLAYER / COLLECTR)
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <section id="marketSection" class="flex flex-col lg:flex-row gap-6 items-start">
+      
+      <!-- ─── BARRA LATERAL DE FILTROS (STICKY) ───────────────────────────── -->
+      <aside class="w-full lg:w-64 lg:sticky lg:top-20 flex-shrink-0 bg-slate-900/70 border border-slate-800/60 rounded-2xl p-4 flex flex-col gap-4 backdrop-blur-sm">
+        
+        <!-- Cabecera de Filtros -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-sky-500/15 flex items-center justify-center">
+              <i class="fa-solid fa-sliders text-sky-400 text-xs"></i>
+            </div>
+            <h3 class="text-sm font-bold text-white tracking-wide">Filtros</h3>
+          </div>
+          <button id="btnResetFilters" class="text-[11px] text-slate-500 hover:text-sky-400 transition flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-sky-500/10">
+            <i class="fa-solid fa-rotate-left text-[9px]"></i>
+            Limpiar
+          </button>
+        </div>
+
+        <div class="h-px bg-slate-800/80"></div>
+
+        <!-- Filtro Rápido por Rareza -->
+        <div class="flex flex-col gap-2.5">
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Rareza</label>
+          <div class="flex flex-col gap-1" id="sidebarRarityPills">
+            <button class="filter-rarity-pill active group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-semibold transition" data-rarity="all">
+              <span class="w-5 h-5 rounded-md bg-sky-500/20 flex items-center justify-center text-[11px]">✦</span>
+              Todas
+            </button>
+            <button class="filter-rarity-pill group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-transparent border border-slate-800 text-slate-400 text-xs font-semibold transition hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-orange-300" data-rarity="MANGA">
+              <span class="w-5 h-5 rounded-md bg-slate-800 group-hover:bg-orange-500/20 flex items-center justify-center text-[11px] transition">🔥</span>
+              Manga
+            </button>
+            <button class="filter-rarity-pill group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-transparent border border-slate-800 text-slate-400 text-xs font-semibold transition hover:bg-yellow-500/10 hover:border-yellow-500/30 hover:text-yellow-300" data-rarity="SP">
+              <span class="w-5 h-5 rounded-md bg-slate-800 group-hover:bg-yellow-500/20 flex items-center justify-center text-[11px] transition">⭐</span>
+              SP
+            </button>
+            <button class="filter-rarity-pill group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-transparent border border-slate-800 text-slate-400 text-xs font-semibold transition hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-300" data-rarity="L-AA">
+              <span class="w-5 h-5 rounded-md bg-slate-800 group-hover:bg-amber-500/20 flex items-center justify-center text-[11px] transition">👑</span>
+              Líder AA
+            </button>
+            <button class="filter-rarity-pill group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-transparent border border-slate-800 text-slate-400 text-xs font-semibold transition hover:bg-violet-500/10 hover:border-violet-500/30 hover:text-violet-300" data-rarity="AA">
+              <span class="w-5 h-5 rounded-md bg-slate-800 group-hover:bg-violet-500/20 flex items-center justify-center text-[11px] transition">✨</span>
+              Todas AA
+            </button>
+            <button class="filter-rarity-pill group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-transparent border border-slate-800 text-slate-400 text-xs font-semibold transition hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-300" data-rarity="SEC">
+              <span class="w-5 h-5 rounded-md bg-slate-800 group-hover:bg-rose-500/20 flex items-center justify-center text-[11px] transition">💎</span>
+              SEC
+            </button>
+            <button class="filter-rarity-pill group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-transparent border border-slate-800 text-slate-400 text-xs font-semibold transition hover:bg-slate-600/20 hover:border-slate-600 hover:text-slate-200" data-rarity="SR">
+              <span class="w-5 h-5 rounded-md bg-slate-800 group-hover:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-500 group-hover:text-slate-300 transition">SR</span>
+              Super Rare
+            </button>
+            <button class="filter-rarity-pill group flex items-center gap-2.5 w-full px-3 py-2 rounded-xl bg-transparent border border-slate-800 text-slate-400 text-xs font-semibold transition hover:bg-sky-500/10 hover:border-sky-500/30 hover:text-sky-300" data-rarity="DON">
+              <span class="w-5 h-5 rounded-md bg-slate-800 group-hover:bg-sky-500/20 flex items-center justify-center text-[11px] transition">⚡</span>
+              DON!!
+            </button>
+          </div>
+        </div>
+
+        <div class="h-px bg-slate-800/80"></div>
+
+        <!-- Filtro por Expansión / Set -->
+        <div class="flex flex-col gap-2.5">
+          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Expansión / Set</label>
+          <div class="relative">
+          <select id="sidebarSetSelect" class="w-full appearance-none bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2.5 pr-8 text-xs text-slate-200 outline-none focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/20 transition cursor-pointer">
+            <option value="all">Todas las expansiones (4,710 cartas)</option>
+            <option value="DON">⚡ Cartas DON!! (Todos)</option>
+
+            <optgroup label="── Booster Packs (OP) ──" class="bg-slate-900 text-sky-400 font-semibold">
+              <option value="OP-01" class="text-slate-200">OP-01 Romance Dawn</option>
+              <option value="OP-02" class="text-slate-200">OP-02 Paramount War</option>
+              <option value="OP-03" class="text-slate-200">OP-03 Pillars of Strength</option>
+              <option value="OP-04" class="text-slate-200">OP-04 Kingdoms of Intrigue</option>
+              <option value="OP-05" class="text-slate-200">OP-05 Awakening of the New Era</option>
+              <option value="OP-06" class="text-slate-200">OP-06 Wings of the Captain</option>
+              <option value="OP-07" class="text-slate-200">OP-07 500 Years in the Future</option>
+              <option value="OP-08" class="text-slate-200">OP-08 Two Legends</option>
+              <option value="OP-09" class="text-slate-200">OP-09 The Four Emperors</option>
+              <option value="OP-10" class="text-slate-200">OP-10 Royal Bloodline</option>
+              <option value="OP-11" class="text-slate-200">OP-11 A New Chapter</option>
+              <option value="OP-12" class="text-slate-200">OP-12 Legacy of the Master</option>
+              <option value="OP-13" class="text-slate-200">OP-13 Carrying On His Will</option>
+              <option value="OP-14" class="text-slate-200">OP-14 The Azure Sea's Seven</option>
+              <option value="OP-15" class="text-slate-200">OP-15 Adventure on Kami's Island</option>
+              <option value="OP-16" class="text-slate-200">OP-16 The Azure Blue</option>
+              <option value="OP-17" class="text-slate-200">OP-17 The World's Strongest Warriors</option>
+              <option value="OP-18" class="text-slate-200">OP-18 Booster Pack 18</option>
+            </optgroup>
+
+            <optgroup label="── Extra Boosters (EB) ──" class="bg-slate-900 text-sky-400 font-semibold">
+              <option value="EB-01" class="text-slate-200">EB-01 Memorial Collection</option>
+              <option value="EB-02" class="text-slate-200">EB-02 Anime 25th Collection</option>
+              <option value="EB-03" class="text-slate-200">EB-03 Extra Booster 03</option>
+              <option value="EB-04" class="text-slate-200">EB-04 Extra Booster 04</option>
+              <option value="EB-05" class="text-slate-200">EB-05 Extra Booster 05</option>
+            </optgroup>
+
+            <optgroup label="── Premium Boosters (PRB) ──" class="bg-slate-900 text-sky-400 font-semibold">
+              <option value="PRB-01" class="text-slate-200">PRB-01 The Best (Premium Booster)</option>
+              <option value="PRB-02" class="text-slate-200">PRB-02 The Best Vol. 2</option>
+            </optgroup>
+
+            <optgroup label="── Starter Decks (ST) ──" class="bg-slate-900 text-sky-400 font-semibold">
+              <option value="ST" class="text-slate-200">Todos los Starter Decks (ST-01 a ST-36)</option>
+              <option value="ST-01" class="text-slate-200">ST-01 Straw Hat Crew</option>
+              <option value="ST-02" class="text-slate-200">ST-02 Worst Generation</option>
+              <option value="ST-03" class="text-slate-200">ST-03 The Seven Warlords of the Sea</option>
+              <option value="ST-04" class="text-slate-200">ST-04 Animal Kingdom Pirates</option>
+              <option value="ST-05" class="text-slate-200">ST-05 ONE PIECE FILM edition</option>
+              <option value="ST-06" class="text-slate-200">ST-06 Absolute Justice</option>
+              <option value="ST-07" class="text-slate-200">ST-07 Big Mom Pirates</option>
+              <option value="ST-08" class="text-slate-200">ST-08 Monkey D. Luffy</option>
+              <option value="ST-09" class="text-slate-200">ST-09 Yamato</option>
+              <option value="ST-10" class="text-slate-200">ST-10 The Three Captains</option>
+              <option value="ST-11" class="text-slate-200">ST-11 Uta</option>
+              <option value="ST-12" class="text-slate-200">ST-12 Zoro & Sanji</option>
+              <option value="ST-13" class="text-slate-200">ST-13 The Three Brothers</option>
+              <option value="ST-14" class="text-slate-200">ST-14 3D2Y</option>
+              <option value="ST-15" class="text-slate-200">ST-15 Red Edward.Newgate</option>
+              <option value="ST-16" class="text-slate-200">ST-16 Green Uta</option>
+              <option value="ST-17" class="text-slate-200">ST-17 Blue Donquixote Doflamingo</option>
+              <option value="ST-18" class="text-slate-200">ST-18 Purple Monkey.D.Luffy</option>
+              <option value="ST-19" class="text-slate-200">ST-19 Black Smoker</option>
+              <option value="ST-20" class="text-slate-200">ST-20 Yellow Charlotte Katakuri</option>
+              <option value="ST-21" class="text-slate-200">ST-21 Starter Deck 21</option>
+              <option value="ST-22" class="text-slate-200">ST-22 Starter Deck 22</option>
+              <option value="ST-23" class="text-slate-200">ST-23 Starter Deck 23</option>
+              <option value="ST-24" class="text-slate-200">ST-24 Starter Deck 24</option>
+              <option value="ST-25" class="text-slate-200">ST-25 Starter Deck 25</option>
+              <option value="ST-26" class="text-slate-200">ST-26 Starter Deck 26</option>
+              <option value="ST-27" class="text-slate-200">ST-27 Starter Deck 27</option>
+              <option value="ST-28" class="text-slate-200">ST-28 Starter Deck 28</option>
+              <option value="ST-29" class="text-slate-200">ST-29 Starter Deck 29</option>
+              <option value="ST-30" class="text-slate-200">ST-30 Starter Deck 30</option>
+              <option value="ST-31" class="text-slate-200">ST-31 Starter Deck 31</option>
+              <option value="ST-32" class="text-slate-200">ST-32 Starter Deck 32</option>
+              <option value="ST-33" class="text-slate-200">ST-33 Starter Deck 33</option>
+              <option value="ST-34" class="text-slate-200">ST-34 Starter Deck 34</option>
+              <option value="ST-35" class="text-slate-200">ST-35 Starter Deck 35</option>
+              <option value="ST-36" class="text-slate-200">ST-36 Starter Deck 36</option>
+            </optgroup>
+
+            <optgroup label="── Promocionales y Especiales ──" class="bg-slate-900 text-sky-400 font-semibold">
+              <option value="PROMO" class="text-slate-200">Cartas Promocionales (PROMO)</option>
+              <option value="LT-01" class="text-slate-200">LT-01 Expansión LT-01</option>
+              <option value="OTROS" class="text-slate-200">Otros Sets</option>
+            </optgroup>
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+            <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
+          </div>
+          </div>
+        </div>
+
+
+      </aside>
+
+      <!-- ─── ÁREA PRINCIPAL DEL CATÁLOGO / RESULTADOS ────────────────────── -->
+      <div class="flex-1 w-full flex flex-col gap-4">
+
+        <!-- Barra de Control del Catálogo -->
+        <div class="bg-slate-900/60 border border-slate-800/80 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-slate-200" id="catalogResultsCount">
+              Catálogo de Cartas
+            </span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700" id="catalogTotalBadge">
+              4,710 cartas
+            </span>
+          </div>
+
+          <!-- Selector de Orden -->
+          <div class="flex items-center gap-2 text-xs">
+            <label class="text-slate-400 hidden sm:inline">Ordenar por:</label>
+            <select id="catalogSortSelect" class="bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-sky-500">
+              <option value="default">Expansión & Número</option>
+              <option value="name">Nombre (A - Z)</option>
+              <option value="rarity">Mayor Rareza Primero</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ─── CUADRÍCULA DE CARTAS DEL CATÁLOGO ────────────────────────── -->
+        <div id="searchResults" class="w-full">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3.5" id="resultsGrid">
+            <!-- JS inyecta tarjetas compactas aquí -->
+          </div>
+        </div>
+
+        <!-- ─── PANEL DE INSPECCIÓN / ANÁLISIS DE PRECIOS DETALLADO ───────── -->
+        <div id="analysisSection" class="hidden w-full flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <button id="btnBackFromAnalysis" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
+              <i class="fa-solid fa-arrow-left"></i> Volver al Catálogo
+            </button>
+            <a href="#" target="_blank" id="tcgLink" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition">
+              <span>Abrir en TCGPlayer</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+            </a>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 md:p-6 shadow-xl flex flex-col gap-6">
+            
+            <!-- Cabecera de la Carta Inspeccionada -->
+            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-5 pb-5 border-b border-slate-800">
+              <div class="w-32 flex-shrink-0" id="cardImageContainer" style="display: none;">
+                <img id="cardImage" src="" alt="Card Image" class="w-full rounded-lg shadow-lg border border-slate-700">
+              </div>
+              <div class="flex-1 flex flex-col gap-2 text-center sm:text-left">
+                <h2 id="cardName" class="text-xl sm:text-2xl font-bold text-white leading-tight">Card Name</h2>
+                <div class="flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+                  <span class="badge set" id="cardSet">OP-01</span>
+                  <span class="badge rarity" id="cardRarity">SEC</span>
+                  <span class="badge number" id="cardNumber">OP01-120</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Estado de Inventario Físico de esta Carta -->
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4" id="cardInventoryBox">
+              <div class="flex items-center gap-3 text-center sm:text-left">
+                <div class="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg flex-shrink-0">
+                  <i class="fa-solid fa-box-archive"></i>
+                </div>
+                <div>
+                  <h4 id="cardInvStatusTitle" class="text-sm font-semibold text-white">Consultando inventario...</h4>
+                  <p id="cardInvStatusSubtitle" class="text-xs text-slate-400">Verifica tus copias físicas</p>
+                </div>
+              </div>
+              <button id="btnQuickAddInv" class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-plus"></i> Registrar en Inventario
+              </button>
+            </div>
+
+            <!-- Métricas Financieras -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+
+              <!-- Compra Sugerida -->
+              <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-600/20 via-indigo-600/10 to-transparent border border-sky-500/25 p-4 flex flex-col gap-1 group transition hover:border-sky-400/50">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <i class="fa-solid fa-tag text-sky-400 text-[10px]"></i>
+                  <span class="text-[10px] font-bold text-sky-400 uppercase tracking-widest">Compra Sugerida</span>
+                </div>
+                <span class="text-2xl font-black text-white tracking-tight" id="valSuggested">--</span>
+                <div class="absolute inset-0 bg-gradient-to-br from-sky-400/5 to-transparent opacity-0 group-hover:opacity-100 transition pointer-events-none rounded-2xl"></div>
+              </div>
+
+              <!-- Precio Venta COP -->
+              <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600/20 via-teal-600/10 to-transparent border border-emerald-500/25 p-4 flex flex-col gap-1 group transition hover:border-emerald-400/50">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <i class="fa-solid fa-peso-sign text-emerald-400 text-[10px]"></i>
+                  <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Precio Venta</span>
+                </div>
+                <span class="text-2xl font-black text-emerald-300 tracking-tight" id="valSellPrice">--</span>
+                <span class="text-[9px] text-emerald-600 font-semibold uppercase tracking-wider">COP · TRM</span>
+                <div class="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-transparent opacity-0 group-hover:opacity-100 transition pointer-events-none rounded-2xl"></div>
+              </div>
+
+              <!-- Market Price TCG -->
+              <div class="relative overflow-hidden rounded-2xl bg-slate-900/80 border border-slate-700/50 p-4 flex flex-col gap-1 group transition hover:border-slate-500/60">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <i class="fa-solid fa-globe text-slate-400 text-[10px]"></i>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Market Price</span>
+                </div>
+                <span class="text-2xl font-black text-slate-100 tracking-tight" id="valMarket">--</span>
+                <span class="text-[9px] text-slate-600 font-semibold uppercase tracking-wider">TCGPlayer</span>
+                <div class="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition pointer-events-none rounded-2xl"></div>
+              </div>
+
+              <!-- Última Venta -->
+              <div class="relative overflow-hidden rounded-2xl bg-slate-900/80 border border-slate-700/50 p-4 flex flex-col gap-1 group transition hover:border-slate-500/60">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <i class="fa-solid fa-circle-dot text-slate-400 text-[10px]"></i>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Última Venta</span>
+                </div>
+                <span class="text-2xl font-black text-slate-100 tracking-tight" id="valLastSale">--</span>
+                <div class="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition pointer-events-none rounded-2xl"></div>
+              </div>
+
+              <!-- Promedio 7 días -->
+              <div class="relative overflow-hidden rounded-2xl bg-slate-900/80 border border-slate-700/50 p-4 flex flex-col gap-1 col-span-2 sm:col-span-1 group transition hover:border-slate-500/60">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <i class="fa-solid fa-chart-line text-slate-400 text-[10px]"></i>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Promedio</span>
+                </div>
+                <span class="text-2xl font-black text-slate-100 tracking-tight" id="valAvg7d">--</span>
+                <span class="text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Últimos 7 días</span>
+                <div class="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition pointer-events-none rounded-2xl"></div>
+              </div>
+
+            </div>
+
+            <!-- Histórico de Ventas Reales -->
+            <div class="flex flex-col gap-3">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-sky-400"></i> Historial de Ventas Verificadas
+              </h3>
+              <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-950">
+                <table class="w-full text-left text-xs" id="salesTable">
+                  <thead>
+                    <tr class="bg-slate-900/80 text-slate-400 font-semibold border-b border-slate-800">
+                      <th class="px-4 py-2.5">Fecha</th>
+                      <th class="px-4 py-2.5">Precio</th>
+                      <th class="px-4 py-2.5">Condición</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/60">
+                    <!-- Filas inyectadas por JS -->
+                  </tbody>
+                </table>
+              </div>
+              <div id="salesAverage" class="text-right text-xs font-semibold text-emerald-400 pr-2"></div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         SECCIÓN 2: EXPANSIONES Y CARPETAS
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <section id="localCollection" class="hidden flex flex-col gap-6">
+      
+      <!-- Vista 1: Explorador de Conjuntos -->
+      <div id="foldersView" class="flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+          <div>
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-folder-tree text-sky-400"></i> Expansiones & Conjuntos Oficiales
+            </h2>
+            <p class="text-xs text-slate-400">Cartas organizadas por expansión. Los DON!! están centralizados en su carpeta exclusiva.</p>
+          </div>
+          <span id="totalCardsCounter" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+            Cargando conjuntos...
+          </span>
+        </div>
+
+        <!-- Buscador y Filtros de Conjuntos -->
+        <div class="flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div class="w-full sm:w-80 relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+            <input type="text" id="folderSearchInput" placeholder="Filtrar expansión (ej. OP-01, ST, DON)..." class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 outline-none focus:border-sky-500">
+          </div>
+          
+          <div class="flex flex-wrap gap-1.5" id="folderFilterPills">
+            <button class="pill active px-2.5 py-1 rounded bg-sky-600 text-white text-xs font-medium" data-filter="all">Todas</button>
+            <button class="pill px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-filter="MANGA">🔥 Manga (48)</button>
+            <button class="pill px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-filter="SP">⭐ SP</button>
+            <button class="pill px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-filter="DON">⚡ DON!!</button>
+            <button class="pill px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-filter="OP">Expansiones (OP)</button>
+            <button class="pill px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-filter="ST">Starter (ST)</button>
+            <button class="pill px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-filter="EB">Extra (EB)</button>
+          </div>
+        </div>
+
+        <!-- Grid de Conjuntos -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5" id="foldersGrid"></div>
+      </div>
+
+      <!-- Vista 2: Detalle de Conjunto Abierto -->
+      <div id="folderDetailView" class="hidden flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800">
+          <div class="flex items-center gap-3">
+            <button id="btnBackToFolders" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-arrow-left"></i> Volver a Expansiones
+            </button>
+            <div>
+              <h2 id="activeFolderTitle" class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <i id="activeFolderIcon" class="fa-solid fa-folder-open text-sky-400"></i>
+                <span id="activeFolderName">Carpeta</span>
+              </h2>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="badge set" id="activeFolderCodeBadge">OP-01</span>
+                <span class="badge number" id="activeFolderCountBadge">0 cartas</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="w-full sm:w-64 relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+            <input type="text" id="cardFilterInput" placeholder="Filtrar cartas en este set..." class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 outline-none focus:border-sky-500">
+          </div>
+        </div>
+
+        <!-- Filtros de Rareza en Conjunto -->
+        <div class="flex flex-wrap gap-1.5" id="folderRarityFilters">
+          <button class="pill-rarity active px-2.5 py-1 rounded bg-sky-600 text-white text-xs font-medium" data-rarity="all">Todas</button>
+          <button class="pill-rarity px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-rarity="MANGA">🔥 Manga</button>
+          <button class="pill-rarity px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-rarity="SP">⭐ SP</button>
+          <button class="pill-rarity px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-rarity="L-AA">👑 Líderes AA</button>
+          <button class="pill-rarity px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-rarity="AA-ALL">Todas las AA</button>
+          <button class="pill-rarity px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-rarity="SEC-ALL">SEC</button>
+          <button class="pill-rarity px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-rarity="SR-ALL">SR</button>
+          <button class="pill-rarity px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 text-xs font-medium" data-rarity="L">Líderes Normales</button>
+        </div>
+
+        <!-- Grid de Cartas del Conjunto -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 mt-2" id="folderCardsGrid"></div>
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         SECCIÓN 3: MI INVENTARIO FÍSICO (COLLECTR PORTAFOLIO STYLE)
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <section id="physicalInventorySection" class="hidden flex flex-col gap-6">
+      
+      <!-- Cabecera de Inventario -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-box-archive text-indigo-400"></i> Mi Colección Física
+          </h2>
+          <p class="text-xs text-slate-400">Control de cartas físicas, copias en posesión, precios de compra y valor total.</p>
+        </div>
+        <button id="btnOpenAddModal" class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+          <i class="fa-solid fa-plus"></i> Registrar Carta Física
+        </button>
+      </div>
+
+      <!-- Tarjetas de Estadísticas del Portafolio -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="fa-solid fa-clone"></i>
+          </div>
+          <div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Copias Totales</span>
+            <span class="text-2xl font-black text-white" id="statTotalCopies">0</span>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="fa-solid fa-shapes"></i>
+          </div>
+          <div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Cartas Distintas</span>
+            <span class="text-2xl font-black text-white" id="statUniqueCards">0</span>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="fa-solid fa-sack-dollar"></i>
+          </div>
+          <div>
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Inversión Total Registrada</span>
+            <span class="text-2xl font-black text-emerald-400" id="statTotalInvestment">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Búsqueda de Inventario y Controles -->
+      <div class="flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div class="w-full sm:flex-1 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+          <input type="text" id="inventorySearchInput" placeholder="Buscar en mi inventario físico (nombre, número o set)..." class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-2 text-xs text-slate-200 outline-none focus:border-sky-500">
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
+          <button id="btnExpandAllInventory" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-angles-down text-sky-400 text-[10px]"></i> Expandir todo
+          </button>
+          <button id="btnCollapseAllInventory" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-angles-up text-slate-400 text-[10px]"></i> Colapsar todo
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtro Rápido por Expansión -->
+      <div id="inventorySetPills" class="flex flex-wrap gap-1.5"></div>
+
+      <!-- Grupos de Cartas por Expansión -->
+      <div class="flex flex-col gap-4" id="inventoryCardsGrid"></div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         SECCIÓN 4: CONSULTADOR & PROYECTOS DE DECKS (ONE PIECE TCG)
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <section id="deckSection" class="hidden flex flex-col gap-6">
+      
+      <!-- Cabecera de Decks -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-purple-400"></i> Consultador & Proyectos de Decks
+          </h2>
+          <p class="text-xs text-slate-400">Pega tu lista exportada de One Piece. Analiza cuáles tienes en tu inventario físico, cuántas te faltan y guarda tus proyectos.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnViewSavedDecksToggle" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-folder-open text-purple-400"></i> Mis Decks (<span id="savedDecksCountBadge">0</span>)
+          </button>
+          <button id="btnNewDeckReset" class="px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+            <i class="fa-solid fa-plus"></i> Nuevo Análisis
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel de Entrada de Lista (Input) -->
+      <div id="deckInputPanel" class="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex-1 max-w-md">
+            <label class="text-xs font-semibold text-slate-300 mb-1 block">Nombre del Proyecto / Deck</label>
+            <input type="text" id="deckNameInput" placeholder="Ej. Nico Robin Líder OP09, Zoro Rush, etc." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-purple-500 transition">
+          </div>
+          <div class="flex items-center gap-2 self-end sm:self-auto">
+            <button id="btnLoadExampleDeck" type="button" class="text-xs text-purple-400 hover:text-purple-300 underline font-medium">
+              Cargar Ejemplo
+            </button>
+            <span class="text-slate-700">|</span>
+            <button id="btnClearDeckInput" type="button" class="text-xs text-slate-400 hover:text-slate-200 font-medium">
+              Limpiar
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+            <span>Lista de Cartas (Formato: 1xOP09-062, 4xOP17-113...)</span>
+            <span class="text-[11px] text-slate-400 font-normal">Soporta exportaciones de OPTCGSim, Limitless y texto plano</span>
+          </label>
+          <textarea id="deckListTextarea" rows="6" placeholder="1xOP09-062&#10;4xOP17-113&#10;4xOP17-107&#10;4xOP17-109&#10;2xOP12-112&#10;4xOP17-102&#10;..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-purple-500 transition leading-relaxed"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button id="btnAnalyzeDeckSubmit" type="button" class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-900/30 transition active:scale-95">
+            <i class="fa-solid fa-magnifying-glass-chart"></i> Consultar Disponibilidad en Inventario
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel de Lista de Decks Guardados (Acordeón o pestaña desplegable) -->
+      <div id="deckSavedContainer" class="hidden flex flex-col gap-4 p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-folder-open text-purple-400"></i> Proyectos Guardados en tu Cuenta
+          </h3>
+          <button id="btnCloseSavedDecks" class="text-xs text-slate-400 hover:text-white">
+            <i class="fa-solid fa-xmark"></i> Cerrar
+          </button>
+        </div>
+        <div id="savedDecksList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <!-- Tarjetas de decks guardados generadas dinámicamente -->
+        </div>
+      </div>
+
+      <!-- Panel de Resultados del Análisis del Deck -->
+      <div id="deckResultsSection" class="hidden flex flex-col gap-6">
+        
+        <!-- Dashboard de Estadísticas del Deck -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          
+          <!-- Líder del Deck -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3.5">
+            <img id="deckLeaderImg" src="/images/cards/OP01-013.jpg" class="w-12 h-16 object-cover rounded-lg border border-purple-500/40 bg-slate-950 flex-shrink-0 shadow">
+            <div class="min-w-0">
+              <span class="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">Líder</span>
+              <h4 id="deckLeaderName" class="text-xs font-bold text-white truncate">Líder del Deck</h4>
+              <span id="deckLeaderCode" class="font-mono text-[11px] text-slate-400">OP##-###</span>
+            </div>
+          </div>
+
+          <!-- Barra de Completitud / Porcentaje -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Completitud del Deck</span>
+              <span id="deckCompletionBadge" class="text-xs font-bold text-purple-400">0%</span>
+            </div>
+            <div>
+              <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-800 mb-1.5">
+                <div id="deckProgressBar" class="bg-gradient-to-r from-purple-500 to-emerald-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+              <span id="deckProgressText" class="text-[11px] text-slate-300 font-medium">0 de 51 cartas en inventario</span>
+            </div>
+          </div>
+
+          <!-- Cartas que Tienes -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg flex-shrink-0">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Copias Disponibles</span>
+              <span id="deckOwnedCount" class="text-2xl font-black text-emerald-400">0</span>
+              <span id="deckCompleteTypesText" class="text-[10px] text-slate-500 block">0 tipos de cartas completos</span>
+            </div>
+          </div>
+
+          <!-- Cartas que Te Faltan -->
+          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center text-lg flex-shrink-0">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Copias Faltantes</span>
+              <span id="deckMissingCount" class="text-2xl font-black text-red-400">0</span>
+              <span id="deckMissingTypesText" class="text-[10px] text-slate-500 block">0 tipos de cartas incompletos</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Barra de Herramientas y Filtros del Deck -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="flex items-center gap-1.5 text-xs">
+            <button id="filterDeckAll" class="deck-filter-btn active px-3 py-1.5 rounded-lg bg-purple-600 text-white font-medium transition">
+              Todas (<span id="countFilterAll">0</span>)
+            </button>
+            <button id="filterDeckMissing" class="deck-filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white font-medium transition">
+              Solo Faltantes (<span id="countFilterMissing">0</span>)
+            </button>
+            <button id="filterDeckOwned" class="deck-filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white font-medium transition">
+              Completas (<span id="countFilterOwned">0</span>)
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+            <button id="btnCopyMissingList" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700" title="Copiar lista de cartas faltantes en texto">
+              <i class="fa-solid fa-copy text-amber-400"></i> Copiar Texto
+            </button>
+            <button id="btnExportMissingImage" type="button" class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-md shadow-purple-900/30 active:scale-95" title="Generar imagen de cartas faltantes con cantidades x1, x4 como en OPTCGSim">
+              <i class="fa-solid fa-image text-amber-300"></i> Copiar / Descargar Imagen
+            </button>
+            <button id="btnSaveDeckProjectAction" type="button" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+              <i class="fa-solid fa-floppy-disk"></i> Guardar Proyecto
+            </button>
+          </div>
+        </div>
+
+        <!-- Rejilla de Cartas del Deck con Estado de Posesión -->
+        <div id="deckCardsListGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+          <!-- Cartas del deck generadas dinámicamente -->
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ─── MODAL: EXPORTAR IMAGEN DE FALTANTES (GRID ESTILO OPTCGSIM / BANDAI) ─── -->
+    <div id="modalDeckImageExport" class="modal-backdrop fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4">
+      <div class="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-2xl flex flex-col gap-4 max-h-[95vh] overflow-hidden">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 flex-shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+              <i class="fa-solid fa-image"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                Exportar Lista en Imagen
+              </h3>
+              <p class="text-[11px] text-slate-400">Genera una cuadrícula de cartas con sus cantidades exactas (x1, x4) lista para compartir</p>
+            </div>
+          </div>
+          <button id="btnCloseDeckImageModal" class="text-slate-400 hover:text-white p-1">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <!-- Controles de exportación: Modo y Tema -->
+        <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex-shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-300">Mostrar:</span>
+            <div class="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-xs">
+              <button id="btnImgModeMissing" class="px-2.5 py-1 rounded-md bg-purple-600 text-white font-medium transition">
+                Solo Faltantes
+              </button>
+              <button id="btnImgModeAll" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">
+                Deck Completo
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-300">Fondo:</span>
+            <div class="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-xs">
+              <button id="btnImgThemeWhite" class="px-2.5 py-1 rounded-md bg-purple-600 text-white font-medium transition">
+                Blanco (Oficial)
+              </button>
+              <button id="btnImgThemeDark" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">
+                Oscuro
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contenedor de Previsualización de la Imagen -->
+        <div class="flex-1 overflow-auto bg-slate-950/70 border border-slate-800 rounded-xl p-3 flex items-center justify-center min-h-[250px] relative">
+          <div id="deckImageLoadingSpinner" class="flex flex-col items-center gap-2 text-slate-400 text-xs py-10">
+            <i class="fa-solid fa-spinner fa-spin text-2xl text-purple-400"></i>
+            <span>Dibujando cuadrícula en alta resolución...</span>
+          </div>
+          <img id="deckExportImagePreview" class="max-w-full max-h-[60vh] object-contain rounded-lg shadow-2xl hidden" alt="Deck Grid">
+        </div>
+
+        <!-- Botones de Acción al pie -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800 flex-shrink-0">
+          <span class="text-[11px] text-slate-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-info text-purple-400"></i> Mantén presionada la imagen en el móvil para compartirla directamente.
+          </span>
+          <div class="flex items-center gap-2.5">
+            <button id="btnActionCopyImageBlob" type="button" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-900/40 transition active:scale-95">
+              <i class="fa-solid fa-copy"></i> Copiar al Portapapeles
+            </button>
+            <button id="btnActionDownloadImagePng" type="button" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-2 border border-slate-700 transition active:scale-95">
+              <i class="fa-solid fa-download text-emerald-400"></i> Descargar PNG
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── MODAL: REGISTRAR CARTA FÍSICA ─────────────────────────────────── -->
+    <div id="modalAddPhysicalCard" class="modal-backdrop fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+      <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <h3 id="modalTitle" class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-circle-plus text-indigo-400"></i> Registrar Carta Física
+          </h3>
+          <button id="btnCloseModal" class="text-slate-400 hover:text-white text-base">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="flex flex-col gap-3.5">
+          <!-- Búsqueda de carta -->
+          <div id="modalCardSearchGroup" class="flex flex-col gap-1.5 relative">
+            <label class="text-xs font-semibold text-slate-300">Buscar Carta en la Base de Datos</label>
+            <div class="relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+              <input type="text" id="modalCardSearchInput" placeholder="Escribe el nombre o código (ej. OP01-120, Luffy, DON)..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-2 text-xs text-slate-200 outline-none focus:border-sky-500" autocomplete="off">
+            </div>
+            <!-- Desplegable autocompletado -->
+            <div id="modalCardSearchResults" class="autocomplete-dropdown absolute top-full left-0 right-0 z-50 mt-1 bg-slate-900 border border-slate-800 rounded-lg max-h-48 overflow-y-auto hidden shadow-xl divide-y divide-slate-800/50"></div>
+          </div>
+
+          <!-- Previsualización de Carta Seleccionada -->
+          <div id="modalCardPreview" class="p-3 rounded-lg bg-slate-950 border border-slate-800 hidden flex items-center gap-3">
+            <img id="modalPreviewImg" src="" alt="Preview" class="w-12 h-16 object-cover rounded border border-slate-700">
+            <div class="flex-1 flex flex-col gap-1 min-w-0">
+              <h4 id="modalPreviewName" class="text-xs font-bold text-white truncate">Nombre Carta</h4>
+              <div class="flex items-center gap-1.5">
+                <span class="badge set" id="modalPreviewSet">OP-01</span>
+                <span class="badge number" id="modalPreviewNumber">OP01-001</span>
+              </div>
+              <div id="modalPreviousOwnershipAlert" class="text-[11px] font-medium"></div>
+            </div>
+          </div>
+
+          <input type="hidden" id="modalSelectedCardId">
+
+          <!-- Cantidad y Precio de Compra -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-semibold text-slate-300">Cantidad de Copias</label>
+              <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+                <button type="button" id="btnQtyMinus" class="px-3 py-2 text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 transition">
+                  <i class="fa-solid fa-minus text-xs"></i>
+                </button>
+                <input type="number" id="modalQtyInput" min="1" value="1" class="w-full bg-transparent text-center text-xs font-bold text-white outline-none">
+                <button type="button" id="btnQtyPlus" class="px-3 py-2 text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 transition">
+                  <i class="fa-solid fa-plus text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-semibold text-slate-300">Precio Unitario ($ USD)</label>
+              <input type="number" step="0.01" min="0" id="modalPriceInput" placeholder="0.00" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-sky-500">
+            </div>
+          </div>
+
+          <!-- Condición -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold text-slate-300">Estado / Condición</label>
+            <select id="modalConditionSelect" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-sky-500">
+              <option value="Near Mint" selected>Near Mint (NM) - Impecable</option>
+              <option value="Lightly Played">Lightly Played (LP) - Leve desgaste</option>
+              <option value="Moderately Played">Moderately Played (MP) - Desgaste moderado</option>
+              <option value="Heavily Played">Heavily Played (HP) - Desgaste alto</option>
+              <option value="Damaged">Damaged - Dañada</option>
+            </select>
+          </div>
+
+          <!-- Notas -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold text-slate-300">Notas Opcionales</label>
+            <input type="text" id="modalNotesInput" placeholder="Ej. Comprada en torneo, folio protector..." class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-sky-500">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+          <button id="btnCancelModal" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
+            Cancelar
+          </button>
+          <button id="btnSaveInventory" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+            Guardar en Inventario
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── MODAL ESCÁNER EN VIVO (CÁMARA CON DETECCIÓN AUTOMÁTICA) ──────── -->
+    <div id="modalLiveScanner" class="fixed inset-0 z-50 bg-black hidden flex flex-col justify-between overflow-hidden select-none">
+      
+      <!-- Barra superior con controles -->
+      <div class="relative z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/90 via-black/50 to-transparent">
+        <!-- Indicador de estado -->
+        <div id="scannerStatusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs backdrop-blur-md">
+          <span id="scannerStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="scannerStatusText" class="text-slate-200 font-medium">Apunta a la carta...</span>
+        </div>
+
+        <!-- Botones de acción superior -->
+        <div class="flex items-center gap-2">
+          <!-- Linterna / Flash -->
+          <button id="btnScannerTorch" type="button" class="w-9 h-9 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-yellow-400 flex items-center justify-center transition" title="Encender Linterna">
+            <i class="fa-solid fa-bolt text-sm"></i>
+          </button>
+          <!-- Cargar foto desde galería -->
+          <button id="btnScannerUpload" type="button" class="w-9 h-9 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-sky-400 flex items-center justify-center transition" title="Seleccionar imagen de la galería">
+            <i class="fa-solid fa-image text-sm"></i>
+          </button>
+          <!-- Cerrar escáner -->
+          <button id="btnCloseScanner" type="button" class="w-9 h-9 rounded-full bg-red-950/80 hover:bg-red-900/90 border border-red-800/80 text-red-200 hover:text-white flex items-center justify-center transition" title="Cerrar escáner">
+            <i class="fa-solid fa-xmark text-base"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Área de video y visor central -->
+      <div class="relative flex-1 flex items-center justify-center overflow-hidden">
+        <!-- Video en vivo -->
+        <video id="scannerVideo" playsinline autoplay muted class="absolute inset-0 w-full h-full object-cover"></video>
+        
+        <!-- Máscara oscura semitransparente fuera de la carta -->
+        <div class="absolute inset-0 pointer-events-none bg-black/45"></div>
+
+        <!-- Caja objetivo de la carta (proporción 7:10) -->
+        <div id="scannerTargetBox" class="relative z-10 w-[270px] h-[385px] sm:w-[320px] sm:h-[455px] rounded-2xl border-2 border-sky-400/90 shadow-[0_0_35px_rgba(56,189,248,0.35)] transition-all duration-300 overflow-hidden backdrop-brightness-110">
+          
+          <!-- Esquinas estilizadas -->
+          <div class="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-sky-400 rounded-tl-xl pointer-events-none"></div>
+          <div class="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-sky-400 rounded-tr-xl pointer-events-none"></div>
+          <div class="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-sky-400 rounded-bl-xl pointer-events-none"></div>
+          <div class="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-sky-400 rounded-br-xl pointer-events-none"></div>
+
+          <!-- Línea Láser Animada -->
+          <div id="scannerLaser" class="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent shadow-[0_0_12px_#38bdf8] animate-laser pointer-events-none"></div>
+
+          <!-- Guía de posición del código de la carta -->
+          <div class="absolute bottom-2 right-2 px-2 py-0.5 bg-sky-950/80 border border-sky-400/50 rounded text-[10px] text-sky-200 font-mono tracking-wider pointer-events-none">
+            [CÓDIGO: OP##-###]
+          </div>
+        </div>
+
+        <!-- Instrucción de alineación -->
+        <div class="absolute bottom-4 left-0 right-0 text-center pointer-events-none z-10 px-4">
+          <p class="text-xs text-slate-300/90 bg-slate-950/80 inline-block px-3 py-1 rounded-full border border-slate-800">
+            Centra la carta dentro del marco y mantén firme la cámara
+          </p>
+        </div>
+      </div>
+
+      <!-- ─── TARJETA FLOTANTE DE CONFIRMACIÓN RÁPIDA (MODO HÍBRIDO) ──────── -->
+      <div id="scannerDetectionCard" class="hidden absolute bottom-28 left-4 right-4 sm:left-auto sm:right-auto sm:w-[380px] sm:self-center z-30 bg-slate-900/95 border-2 border-emerald-500/80 rounded-2xl p-3 shadow-[0_10px_35px_rgba(0,0,0,0.85)] backdrop-blur-xl flex items-center justify-between gap-3 transition-all duration-300">
+        <div class="flex items-center gap-3 min-w-0">
+          <img id="scannerCardThumb" src="/images/cards/OP01-013.jpg" alt="Carta" class="w-12 h-16 object-cover rounded-lg border border-slate-700 bg-slate-950 flex-shrink-0 shadow">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 mb-0.5">
+              <span id="scannerCardCodeBadge" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold border border-emerald-500/40">OP01-025</span>
+              <span id="scannerCardRarityBadge" class="text-[10px] text-slate-300 font-semibold px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700">SR</span>
+            </div>
+            <p id="scannerCardName" class="text-sm font-bold text-white truncate">Roronoa Zoro</p>
+            <p class="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+              <i class="fa-solid fa-circle-check text-[10px]"></i> Abriendo en <span id="scannerCountdownSec" class="font-bold underline">2</span>s...
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <!-- Descartar y seguir escaneando -->
+          <button id="btnCancelDetection" type="button" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-red-400 flex items-center justify-center transition border border-slate-700" title="Descartar y seguir escaneando">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+          <!-- Confirmar y abrir inmediatamente -->
+          <button id="btnConfirmDetection" type="button" class="px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md transition">
+            <span>Ver</span>
+            <i class="fa-solid fa-arrow-right text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra inferior con controles y disparo -->
+      <div class="relative z-20 flex flex-col items-center gap-3 p-4 pb-6 bg-gradient-to-t from-black/95 via-black/80 to-transparent">
+        
+        <!-- Interruptor de auto-detección -->
+        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-900/80 px-3.5 py-1.5 rounded-full border border-slate-800 shadow-sm backdrop-blur-sm">
+          <input type="checkbox" id="toggleAutoScan" checked class="w-4 h-4 rounded accent-sky-500 cursor-pointer">
+          <span class="font-medium">Detección automática en vivo</span>
+        </label>
+
+        <!-- Botón de disparo manual -->
+        <button id="btnTriggerScan" type="button" class="w-16 h-16 rounded-full bg-sky-500 hover:bg-sky-400 active:scale-95 text-white flex items-center justify-center shadow-[0_0_25px_rgba(56,189,248,0.6)] border-4 border-slate-900 transition" title="Capturar y buscar ahora">
+          <i class="fa-solid fa-camera text-xl"></i>
+        </button>
+      </div>
+
+      <!-- Canvas oculto para procesar el frame recortado -->
+      <canvas id="scannerCanvas" class="hidden"></canvas>
+    </div>
+
+    <!-- ─── OVERLAY DE CARGA ─────────────────────────────────────────────── -->
+    <div id="loadingOverlay" class="loading-overlay fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col items-center text-center max-w-sm shadow-2xl">
+        <div class="spinner"></div>
+        <h3 id="loadingText" class="text-sm font-bold text-white mb-1">Cargando...</h3>
+        <p class="text-xs text-slate-400">Consultando base de datos oficial...</p>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="app.js?v=12"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(console.error);
+      });
+    }
+  </script>
+</body>
+</html>
