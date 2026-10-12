@@ -158,7 +158,13 @@ export async function getAllInventory(): Promise<InventorySummary> {
             card_name: d.cards?.name || 'Desconocida',
             set_code: resolved.set_code,
             rarity: resolved.rarity,
-            image_url: resolveCardImageUrl(d.cards?.image_url, d.cards?.card_number || resolved.card_number, resolved.set_code),
+            image_url: resolveCardImageUrl(
+              d.cards?.image_url,
+              d.cards?.card_number || resolved.card_number,
+              resolved.set_code,
+              resolved.rarity || d.cards?.rarity,
+              d.cards?.name
+            ),
             tcgplayer_url: d.cards?.tcgplayer_url || '',
             quantity: Number(d.quantity) || 1,
             purchase_price: Number(d.purchase_price) || 0,

@@ -77,13 +77,28 @@ export async function downloadHighQualityImage(
   return null;
 }
 
-export function resolveCardImageUrl(imageUrl: string | null | undefined, cardNumber?: string | null, setCode?: string | null): string {
+export function resolveCardImageUrl(
+  imageUrl: string | null | undefined,
+  cardNumber?: string | null,
+  setCode?: string | null,
+  rarity?: string | null,
+  cardName?: string | null
+): string {
+  const rUpper = (rarity || '').toUpperCase();
+  const nLower = (cardName || '').toLowerCase();
+  const isAA = rUpper.includes('AA') ||
+               rUpper.includes('PARALLEL') ||
+               nLower.includes('alternate art') ||
+               nLower.includes('parallel') ||
+               nLower.includes('super alternate art');
+
   if (!imageUrl) {
     if (cardNumber && /^don_(\d+)/i.test(cardNumber)) {
       return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${cardNumber.toLowerCase()}.jpg`;
     }
     if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
-      return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}.jpg`;
+      const suffix = isAA ? '_p1' : '';
+      return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}${suffix}.jpg`;
     }
     if (setCode === 'DON') {
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
@@ -94,6 +109,9 @@ export function resolveCardImageUrl(imageUrl: string | null | undefined, cardNum
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
     if (imageUrl.includes('OP05-060_p4.jpg')) {
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/OP01-121_p2.jpg';
+    }
+    if (isAA && imageUrl.includes('optcgapi.com/media/static/Card_Images/') && !imageUrl.includes('_p') && !imageUrl.includes('_r')) {
+      return imageUrl.replace(/\.jpg$/i, '_p1.jpg');
     }
     return imageUrl.replace(/_in_\d+x\d+/i, '_in_1000x1000').replace(/_\d+w\./i, '_400w.');
   }
@@ -119,12 +137,19 @@ export function resolveCardImageUrl(imageUrl: string | null | undefined, cardNum
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
 
-    // 4. One Piece card number (e.g. OP01-001)
-    const num = cardNumber || cleanName;
-    const opMatch = num.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i);
+    // 4. One Piece card (preservando o deduciendo sufijo de variante _p1, _p2, _r1, etc.)
+    let variantSuffix = '';
+    const suffixMatch = cleanName.match(/_([a-z0-9_-]+)$/i) || imageUrl.match(/_([a-z0-9_-]+)\.(jpg|jpeg|png|webp)$/i);
+    if (suffixMatch) {
+      variantSuffix = `_${suffixMatch[1].toLowerCase()}`;
+    } else if (isAA) {
+      variantSuffix = '_p1';
+    }
+
+    const opMatch = cleanName.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i) || (cardNumber && cardNumber.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i));
     if (opMatch) {
       const formatted = `${opMatch[1].toUpperCase()}${opMatch[2]}-${opMatch[3]}`;
-      return `https://www.optcgapi.com/media/static/Card_Images/${formatted}.jpg`;
+      return `https://www.optcgapi.com/media/static/Card_Images/${formatted}${variantSuffix}.jpg`;
     }
 
     return `https://www.optcgapi.com/media/static/Card_Images/${cleanName}.jpg`;
@@ -282,7 +307,7 @@ export async function getCardById(cardId: string): Promise<Card | null> {
 
   if (error || !data) return null;
   const c = data as Card;
-  c.image_url = resolveCardImageUrl(c.image_url, c.card_number, c.set_code);
+  c.image_url = resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name);
   return c;
 }
 
@@ -295,7 +320,7 @@ export async function getCardByTcgplayerId(tcgplayerId: number): Promise<Card | 
 
   if (error || !data) return null;
   const c = data as Card;
-  c.image_url = resolveCardImageUrl(c.image_url, c.card_number, c.set_code);
+  c.image_url = resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name);
   return c;
 }
 
@@ -318,7 +343,7 @@ export async function searchCards(query: string): Promise<Card[]> {
     if (!error && data && data.length > 0) {
       return (data as Card[]).map(c => ({
         ...c,
-        image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+        image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
       }));
     }
   }
@@ -338,7 +363,7 @@ export async function searchCards(query: string): Promise<Card[]> {
     if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
     return ((data ?? []) as Card[]).map(c => ({
       ...c,
-      image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+      image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
     }));
   }
 
@@ -370,14 +395,13 @@ export async function searchCards(query: string): Promise<Card[]> {
     if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
     return ((data ?? []) as Card[]).map(c => ({
       ...c,
-      image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+      image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
     }));
   }
 
   let reqQuery = supabase
     .from('cards')
-    .select('*')
-    .not('name', 'ilike', '%(Alternate Art / Parallel)%');
+    .select('*');
 
   for (const w of words) {
     const lower = w.toLowerCase();
@@ -402,7 +426,7 @@ export async function searchCards(query: string): Promise<Card[]> {
   if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
   return ((data ?? []) as Card[]).map(c => ({
     ...c,
-    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
   }));
 }
 
@@ -491,8 +515,7 @@ export async function getCardSets(): Promise<SetSummary[]> {
 export async function getSavedCardsBySet(setCode?: string, rarity?: string): Promise<Card[]> {
   let query = supabase
     .from('cards')
-    .select('*')
-    .not('name', 'ilike', '%(Alternate Art / Parallel)%');
+    .select('*');
 
   // Filtrado por set
   if (setCode && setCode !== 'all') {
@@ -534,7 +557,7 @@ export async function getSavedCardsBySet(setCode?: string, rarity?: string): Pro
 
   return all.map(c => ({
     ...c,
-    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
   }));
 }
 
@@ -558,7 +581,7 @@ export async function getAllSavedCards(): Promise<Card[]> {
   }
   return all.map(c => ({
     ...c,
-    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
   }));
 }
 

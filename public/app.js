@@ -7,13 +7,22 @@ const fmtCurrency = (num) => {
 };
 
 // Garantiza URLs en alta calidad evitando miniaturas pixeladas y resolviendo rutas locales a CDN público
-const getHighQualityImageUrl = (url, cardNumber, setCode) => {
+const getHighQualityImageUrl = (url, cardNumber, setCode, rarity, cardName) => {
+  const rUpper = (rarity || '').toUpperCase();
+  const nLower = (cardName || '').toLowerCase();
+  const isAA = rUpper.includes('AA') ||
+               rUpper.includes('PARALLEL') ||
+               nLower.includes('alternate art') ||
+               nLower.includes('parallel') ||
+               nLower.includes('super alternate art');
+
   if (!url) {
     if (cardNumber && /^don_(\d+)/i.test(cardNumber)) {
       return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${cardNumber.toLowerCase()}.jpg`;
     }
     if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
-      return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}.jpg`;
+      const suffix = isAA ? '_p1' : '';
+      return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}${suffix}.jpg`;
     }
     if (setCode === 'DON') {
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
@@ -21,15 +30,30 @@ const getHighQualityImageUrl = (url, cardNumber, setCode) => {
     return '';
   }
 
+  // Si ya es una URL externa (https://...)
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    if (url.includes('OP05-060_p4.jpg')) {
+      return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/OP01-121_p2.jpg';
+    }
+    if (isAA && url.includes('optcgapi.com/media/static/Card_Images/') && !url.includes('_p') && !url.includes('_r')) {
+      return url.replace(/\.jpg$/i, '_p1.jpg');
+    }
+    return url
+      .replace(/_in_\d+x\d+/i, '_in_1000x1000')
+      .replace(/_\d+w\./i, '_400w.');
+  }
+
   if (url.startsWith('/images/cards/')) {
     const filename = url.replace(/^\/images\/cards\//, '');
     const cleanName = filename.replace(/\.(jpg|jpeg|png|webp)$/i, '');
 
+    // 1. TCGPlayer ID (todos dígitos)
     const tcgMatch = cleanName.match(/^(\d+)/);
     if (tcgMatch) {
       return `https://tcgplayer-cdn.tcgplayer.com/product/${tcgMatch[1]}_in_1000x1000.jpg`;
     }
 
+    // 2. DON card con número específico
     const donMatch = cleanName.match(/^don_(\d+)/i) || (cardNumber && cardNumber.match(/^don_(\d+)/i));
     if (donMatch) {
       return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/don_${donMatch[1]}.jpg`;
@@ -39,23 +63,25 @@ const getHighQualityImageUrl = (url, cardNumber, setCode) => {
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
 
-    const num = cardNumber || cleanName;
-    const opMatch = num.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i);
+    // 3. Extraer o deducir sufijo de variante (_p1, _p2, _r1, etc.)
+    let variantSuffix = '';
+    const suffixMatch = cleanName.match(/_([a-z0-9_-]+)$/i) || url.match(/_([a-z0-9_-]+)\.(jpg|jpeg|png|webp)$/i);
+    if (suffixMatch) {
+      variantSuffix = `_${suffixMatch[1].toLowerCase()}`;
+    } else if (isAA) {
+      variantSuffix = '_p1';
+    }
+
+    const opMatch = cleanName.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i) || (cardNumber && cardNumber.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i));
     if (opMatch) {
       const formatted = `${opMatch[1].toUpperCase()}${opMatch[2]}-${opMatch[3]}`;
-      return `https://www.optcgapi.com/media/static/Card_Images/${formatted}.jpg`;
+      return `https://www.optcgapi.com/media/static/Card_Images/${formatted}${variantSuffix}.jpg`;
     }
 
     return `https://www.optcgapi.com/media/static/Card_Images/${cleanName}.jpg`;
   }
 
-  if (url.includes('OP05-060_p4.jpg')) {
-    return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/OP01-121_p2.jpg';
-  }
-
-  return url
-    .replace(/_in_\d+x\d+/i, '_in_1000x1000')
-    .replace(/_\d+w\./i, '_400w.');
+  return url;
 };
 
 // ─── GENERADOR DE BADGES PARA RAREZAS ONE PIECE TCG ───────────────────────
@@ -268,9 +294,14 @@ function renderResults(cards) {
     const el = document.createElement('div');
     el.className = 'group relative flex flex-col bg-slate-900 border border-slate-800 hover:border-sky-500 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-200 cursor-pointer select-none';
 
-    const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+    const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
+                 (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
+    const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
+    const fallbackSrc = isAA 
+      ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
+      : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
     const imgHtml = displayImg 
-      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg';">` 
+      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i><span class="text-[10px]">Sin imagen</span></div>`;
 
     const rarityBadge = card.rarity ? getRarityBadgeHtml(card.rarity) : '';
@@ -1028,7 +1059,7 @@ function renderAnalysis(data) {
   document.getElementById('tcgLink').href = cleanLink;
 
   const cardImgEl = document.getElementById('cardImage');
-  const resolvedImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+  const resolvedImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
   if (resolvedImg) {
     cardImgEl.src = resolvedImg;
     cardImgEl.onerror = () => {
@@ -1380,9 +1411,14 @@ function renderFolderCards(cards) {
     const el = document.createElement('div');
     el.className = 'group relative flex flex-col bg-slate-900 border border-slate-800 hover:border-sky-500 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition cursor-pointer select-none';
     
-    const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+    const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
+                 (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
+    const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
+    const fallbackSrc = isAA 
+      ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
+      : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
     const imgHtml = displayImg 
-      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg';">` 
+      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
       
     el.innerHTML = `
@@ -1748,10 +1784,12 @@ function renderInventoryCards(items) {
       cardEl.className = 'group relative flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm hover:border-indigo-500 hover:shadow-indigo-500/10 transition cursor-pointer';
       
       const displayNum = getDisplayCardNumber(item);
-      const displayImg = getHighQualityImageUrl(item.image_url, item.card_number || displayNum, item.set_code);
+      const isAA = (item.rarity && (item.rarity.includes('AA') || item.rarity.includes('PARALLEL'))) ||
+                   (item.card_name && (item.card_name.includes('Alternate Art') || item.card_name.includes('Parallel')));
+      const displayImg = getHighQualityImageUrl(item.image_url, item.card_number || displayNum, item.set_code, item.rarity, item.card_name);
       const fallbackSrc = (item.set_code === 'DON' || item.rarity === 'DON' || displayNum === 'DON!!')
         ? 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png'
-        : `https://www.optcgapi.com/media/static/Card_Images/${displayNum}.jpg`;
+        : `https://www.optcgapi.com/media/static/Card_Images/${displayNum}${isAA ? '_p1' : ''}.jpg`;
       const imgHtml = displayImg
         ? `<img src="${displayImg}" alt="${item.card_name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='${fallbackSrc}';">`
         : `<div class="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
@@ -2042,9 +2080,14 @@ modalCardSearchInput?.addEventListener('input', (e) => {
           const item = document.createElement('div');
           item.className = 'flex items-center gap-2.5 p-2.5 hover:bg-slate-800 cursor-pointer transition';
 
-          const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+          const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
+                       (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
+          const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
+          const fallbackSrc = isAA 
+            ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
+            : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
           const img = displayImg 
-            ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg';">` 
+            ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
             : `<div class="w-8 h-11 bg-slate-800 rounded"></div>`;
 
           item.innerHTML = `
@@ -2111,7 +2154,7 @@ async function selectCardInModal(card) {
   modalPreviewSet.innerText = card.set_code || card.set_name || 'SET';
   modalPreviewNumber.innerText = card.card_number || 'N/A';
 
-  const previewImgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+  const previewImgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
   if (previewImgUrl) {
     modalPreviewImg.src = previewImgUrl;
     modalPreviewImg.style.display = 'block';
@@ -2581,7 +2624,9 @@ function renderDeckCardsGrid() {
 
     el.className = `group relative flex flex-col bg-slate-900/90 border ${borderClass} rounded-xl overflow-hidden shadow-sm transition hover:shadow-lg`;
 
-    const imgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code) || `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
+    const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
+                 (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
+    const imgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name) || `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}${isAA ? '_p1' : ''}.jpg`;
 
     el.innerHTML = `
       <div class="relative w-full aspect-[7/10] bg-slate-950 overflow-hidden flex items-center justify-center">
@@ -2886,7 +2931,11 @@ async function generateDeckCanvasGrid(cards, options = {}) {
 
   // Cargar imágenes
   const loadedImages = await Promise.all(
-    cards.map(c => loadImage(getHighQualityImageUrl(c.image_url, c.card_number, c.set_code) || `https://www.optcgapi.com/media/static/Card_Images/${c.card_number}.jpg`))
+    cards.map(c => {
+      const isAA = (c.rarity && (c.rarity.includes('AA') || c.rarity.includes('PARALLEL'))) ||
+                   (c.name && (c.name.includes('Alternate Art') || c.name.includes('Parallel')));
+      return loadImage(getHighQualityImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name) || `https://www.optcgapi.com/media/static/Card_Images/${c.card_number}${isAA ? '_p1' : ''}.jpg`);
+    })
   );
 
   // Dibujar cada carta en la cuadrícula
