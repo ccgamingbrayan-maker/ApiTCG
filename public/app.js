@@ -6,9 +6,42 @@ const fmtCurrency = (num) => {
   return '$' + parseFloat(num).toFixed(2);
 };
 
-// Garantiza URLs en alta calidad evitando miniaturas pixeladas
-const getHighQualityImageUrl = (url) => {
-  if (!url) return '';
+// Garantiza URLs en alta calidad evitando miniaturas pixeladas y resolviendo rutas locales a CDN público
+const getHighQualityImageUrl = (url, cardNumber, setCode) => {
+  if (!url) {
+    if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
+      return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}.jpg`;
+    }
+    return '';
+  }
+
+  if (url.startsWith('/images/cards/')) {
+    const filename = url.replace(/^\/images\/cards\//, '');
+    const cleanName = filename.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+
+    const tcgMatch = cleanName.match(/^(\d+)/);
+    if (tcgMatch) {
+      return `https://tcgplayer-cdn.tcgplayer.com/product/${tcgMatch[1]}_in_1000x1000.jpg`;
+    }
+
+    if (/don/i.test(cleanName) || setCode === 'DON') {
+      return 'https://tcgplayer-cdn.tcgplayer.com/product/655914_in_1000x1000.jpg';
+    }
+
+    const num = cardNumber || cleanName;
+    const opMatch = num.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i);
+    if (opMatch) {
+      const formatted = `${opMatch[1].toUpperCase()}${opMatch[2]}-${opMatch[3]}`;
+      return `https://www.optcgapi.com/media/static/Card_Images/${formatted}.jpg`;
+    }
+
+    return `https://www.optcgapi.com/media/static/Card_Images/${cleanName}.jpg`;
+  }
+
+  if (url.includes('OP05-060_p4.jpg')) {
+    return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/OP01-121_p2.jpg';
+  }
+
   return url
     .replace(/_in_\d+x\d+/i, '_in_1000x1000')
     .replace(/_\d+w\./i, '_400w.');
@@ -224,7 +257,7 @@ function renderResults(cards) {
     const el = document.createElement('div');
     el.className = 'group relative flex flex-col bg-slate-900 border border-slate-800 hover:border-sky-500 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-200 cursor-pointer select-none';
 
-    const displayImg = getHighQualityImageUrl(card.image_url);
+    const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
     const imgHtml = displayImg 
       ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg';">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i><span class="text-[10px]">Sin imagen</span></div>`;
@@ -627,7 +660,7 @@ function showDetectionConfirmation(searchString, card) {
   if (scannerCardThumb) {
     scannerCardThumb.src = cardImg;
     scannerCardThumb.onerror = () => {
-      scannerCardThumb.src = '/images/cards/OP01-013.jpg';
+      scannerCardThumb.src = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';
     };
   }
 
@@ -983,8 +1016,14 @@ function renderAnalysis(data) {
   const cleanLink = card.tcgplayer_url.replace(/_small/gi, '');
   document.getElementById('tcgLink').href = cleanLink;
 
-  if (card.image_url) {
-    document.getElementById('cardImage').src = getHighQualityImageUrl(card.image_url);
+  const cardImgEl = document.getElementById('cardImage');
+  const resolvedImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+  if (resolvedImg) {
+    cardImgEl.src = resolvedImg;
+    cardImgEl.onerror = () => {
+      cardImgEl.onerror = null;
+      cardImgEl.src = `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
+    };
     document.getElementById('cardImageContainer').style.display = 'block';
   } else {
     document.getElementById('cardImageContainer').style.display = 'none';
@@ -1140,7 +1179,7 @@ async function loadCollectionFolders() {
           set_code: 'SP',
           set_name: 'Colección Especiales (SP / SPR)',
           count: 127,
-          sample_image: 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/OP05-060_p4.jpg'
+          sample_image: 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/OP01-121_p2.jpg'
         },
         ...data.data
       ];
@@ -1206,7 +1245,7 @@ function renderFolders() {
     card.innerHTML = `
       <div class="flex items-center gap-3 min-w-0">
         <div class="w-10 h-14 rounded bg-slate-950 overflow-hidden flex-shrink-0 border border-slate-800">
-          ${set.sample_image ? `<img src="${set.sample_image}" class="w-full h-full object-cover" loading="lazy">` : `<i class="fa-solid fa-folder ${iconColor} flex items-center justify-center h-full"></i>`}
+          ${set.sample_image ? `<img src="${getHighQualityImageUrl(set.sample_image, null, set.set_code)}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${set.set_code.replace('-', '')}-001.jpg';">` : `<i class="fa-solid fa-folder ${iconColor} flex items-center justify-center h-full"></i>`}
         </div>
         <div class="flex flex-col min-w-0">
           <div class="flex items-center gap-1.5">
@@ -1330,8 +1369,9 @@ function renderFolderCards(cards) {
     const el = document.createElement('div');
     el.className = 'group relative flex flex-col bg-slate-900 border border-slate-800 hover:border-sky-500 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition cursor-pointer select-none';
     
-    const imgHtml = card.image_url 
-      ? `<img src="${card.image_url}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg';">` 
+    const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+    const imgHtml = displayImg 
+      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg';">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
       
     el.innerHTML = `
@@ -1697,7 +1737,7 @@ function renderInventoryCards(items) {
       cardEl.className = 'group relative flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm hover:border-indigo-500 hover:shadow-indigo-500/10 transition cursor-pointer';
       
       const displayNum = getDisplayCardNumber(item);
-      const displayImg = getHighQualityImageUrl(item.image_url);
+      const displayImg = getHighQualityImageUrl(item.image_url, displayNum, item.set_code);
       const imgHtml = displayImg
         ? `<img src="${displayImg}" alt="${item.card_name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='https://www.optcgapi.com/media/static/Card_Images/${displayNum}.jpg';">`
         : `<div class="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
@@ -1988,8 +2028,9 @@ modalCardSearchInput?.addEventListener('input', (e) => {
           const item = document.createElement('div');
           item.className = 'flex items-center gap-2.5 p-2.5 hover:bg-slate-800 cursor-pointer transition';
 
-          const img = card.image_url 
-            ? `<img src="${card.image_url}" class="w-8 h-11 object-cover rounded border border-slate-700">` 
+          const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+          const img = displayImg 
+            ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg';">` 
             : `<div class="w-8 h-11 bg-slate-800 rounded"></div>`;
 
           item.innerHTML = `
@@ -2056,8 +2097,9 @@ async function selectCardInModal(card) {
   modalPreviewSet.innerText = card.set_code || card.set_name || 'SET';
   modalPreviewNumber.innerText = card.card_number || 'N/A';
 
-  if (card.image_url) {
-    modalPreviewImg.src = card.image_url;
+  const previewImgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code);
+  if (previewImgUrl) {
+    modalPreviewImg.src = previewImgUrl;
     modalPreviewImg.style.display = 'block';
   } else {
     modalPreviewImg.style.display = 'none';
@@ -2316,13 +2358,13 @@ async function loadAndRenderSavedDecks() {
       const card = document.createElement('div');
       card.className = 'p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-purple-500/50 flex flex-col justify-between gap-3 transition shadow-md';
       
-      const leaderImg = deck.leader?.image_url || '/images/cards/' + (deck.leader?.card_number || 'OP01-013') + '.jpg';
+      const leaderImg = getHighQualityImageUrl(deck.leader?.image_url, deck.leader?.card_number) || 'https://www.optcgapi.com/media/static/Card_Images/' + (deck.leader?.card_number || 'OP01-013') + '.jpg';
       const pct = deck.completion_percent || 0;
       const createdStr = deck.created_at ? new Date(deck.created_at).toLocaleDateString() : '';
 
       card.innerHTML = `
         <div class="flex items-start gap-3">
-          <img src="${leaderImg}" class="w-12 h-16 object-cover rounded-lg border border-purple-500/30 bg-slate-900 flex-shrink-0" onerror="this.src='/images/cards/OP01-013.jpg'">
+          <img src="${leaderImg}" class="w-12 h-16 object-cover rounded-lg border border-purple-500/30 bg-slate-900 flex-shrink-0" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';">
           <div class="min-w-0 flex-1">
             <h4 class="text-xs font-bold text-white truncate" title="${deck.name}">${deck.name}</h4>
             <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
@@ -2441,13 +2483,13 @@ function renderDeckResults(analysis) {
     if (deckLeaderName) deckLeaderName.innerText = analysis.leader.name || 'Líder';
     if (deckLeaderCode) deckLeaderCode.innerText = analysis.leader.card_number || '';
     if (deckLeaderImg) {
-      deckLeaderImg.src = analysis.leader.image_url || `/images/cards/${analysis.leader.card_number}.jpg`;
-      deckLeaderImg.onerror = () => { deckLeaderImg.src = '/images/cards/OP01-013.jpg'; };
+      deckLeaderImg.src = getHighQualityImageUrl(analysis.leader.image_url, analysis.leader.card_number) || `https://www.optcgapi.com/media/static/Card_Images/${analysis.leader.card_number}.jpg`;
+      deckLeaderImg.onerror = () => { deckLeaderImg.src = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg'; };
     }
   } else {
     if (deckLeaderName) deckLeaderName.innerText = 'Deck sin líder identificado';
     if (deckLeaderCode) deckLeaderCode.innerText = '--';
-    if (deckLeaderImg) deckLeaderImg.src = '/images/cards/OP01-013.jpg';
+    if (deckLeaderImg) deckLeaderImg.src = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';
   }
 
   // Progreso y completitud
@@ -2525,11 +2567,11 @@ function renderDeckCardsGrid() {
 
     el.className = `group relative flex flex-col bg-slate-900/90 border ${borderClass} rounded-xl overflow-hidden shadow-sm transition hover:shadow-lg`;
 
-    const imgUrl = card.image_url || `/images/cards/${card.card_number}.jpg`;
+    const imgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code) || `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
 
     el.innerHTML = `
       <div class="relative w-full aspect-[7/10] bg-slate-950 overflow-hidden flex items-center justify-center">
-        <img src="${imgUrl}" alt="${card.name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='/images/cards/OP01-013.jpg';">
+        <img src="${imgUrl}" alt="${card.name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';">
         <div class="absolute top-1.5 right-1.5 z-10">${getRarityBadgeHtml(card.rarity)}</div>
         <div class="absolute top-1.5 left-1.5 z-10">
           <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950/85 backdrop-blur text-purple-300 border border-purple-500/40 font-mono">${card.needed}x</span>
@@ -2815,12 +2857,12 @@ async function generateDeckCanvasGrid(cards, options = {}) {
         fb.crossOrigin = 'anonymous';
         fb.onload = () => resolve(fb);
         fb.onerror = () => resolve(null);
-        fb.src = '/images/cards/OP01-013.jpg';
+        fb.src = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';
       };
       
       let finalSrc = src;
       if (!finalSrc || finalSrc.includes('placeholder')) {
-        finalSrc = '/images/cards/OP01-013.jpg';
+        finalSrc = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';
       } else if (finalSrc.startsWith('http')) {
         finalSrc = `/api/proxy-image?url=${encodeURIComponent(finalSrc)}`;
       }
@@ -2830,7 +2872,7 @@ async function generateDeckCanvasGrid(cards, options = {}) {
 
   // Cargar imágenes
   const loadedImages = await Promise.all(
-    cards.map(c => loadImage(c.image_url || `/images/cards/${c.card_number}.jpg`))
+    cards.map(c => loadImage(getHighQualityImageUrl(c.image_url, c.card_number, c.set_code) || `https://www.optcgapi.com/media/static/Card_Images/${c.card_number}.jpg`))
   );
 
   // Dibujar cada carta en la cuadrícula

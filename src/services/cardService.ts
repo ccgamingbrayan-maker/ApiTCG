@@ -77,6 +77,47 @@ export async function downloadHighQualityImage(
   return null;
 }
 
+export function resolveCardImageUrl(imageUrl: string | null | undefined, cardNumber?: string | null, setCode?: string | null): string {
+  if (!imageUrl) {
+    if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
+      return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}.jpg`;
+    }
+    return '';
+  }
+
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    if (imageUrl.includes('OP05-060_p4.jpg')) {
+      return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/OP01-121_p2.jpg';
+    }
+    return imageUrl.replace(/_in_\d+x\d+/i, '_in_1000x1000').replace(/_\d+w\./i, '_400w.');
+  }
+
+  if (imageUrl.startsWith('/images/cards/')) {
+    const filename = imageUrl.replace(/^\/images\/cards\//, '');
+    const cleanName = filename.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+
+    const tcgMatch = cleanName.match(/^(\d+)/);
+    if (tcgMatch) {
+      return `https://tcgplayer-cdn.tcgplayer.com/product/${tcgMatch[1]}_in_1000x1000.jpg`;
+    }
+
+    if (/don/i.test(cleanName) || setCode === 'DON') {
+      return 'https://tcgplayer-cdn.tcgplayer.com/product/655914_in_1000x1000.jpg';
+    }
+
+    const num = cardNumber || cleanName;
+    const opMatch = num.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i);
+    if (opMatch) {
+      const formatted = `${opMatch[1].toUpperCase()}${opMatch[2]}-${opMatch[3]}`;
+      return `https://www.optcgapi.com/media/static/Card_Images/${formatted}.jpg`;
+    }
+
+    return `https://www.optcgapi.com/media/static/Card_Images/${cleanName}.jpg`;
+  }
+
+  return imageUrl;
+}
+
 export async function upsertCard(data: ScrapedCardData): Promise<Card> {
   // 1. Download and save the image locally in high resolution
   let localImageUrl = data.image_url;
@@ -224,8 +265,10 @@ export async function getCardById(cardId: string): Promise<Card | null> {
     .eq('id', cardId)
     .single();
 
-  if (error) return null;
-  return data as Card;
+  if (error || !data) return null;
+  const c = data as Card;
+  c.image_url = resolveCardImageUrl(c.image_url, c.card_number, c.set_code);
+  return c;
 }
 
 export async function getCardByTcgplayerId(tcgplayerId: number): Promise<Card | null> {
@@ -235,8 +278,10 @@ export async function getCardByTcgplayerId(tcgplayerId: number): Promise<Card | 
     .eq('tcgplayer_id', tcgplayerId)
     .single();
 
-  if (error) return null;
-  return data as Card;
+  if (error || !data) return null;
+  const c = data as Card;
+  c.image_url = resolveCardImageUrl(c.image_url, c.card_number, c.set_code);
+  return c;
 }
 
 // ─── SEARCH CARDS ───────────────────────────────────────────────────────────
@@ -256,7 +301,10 @@ export async function searchCards(query: string): Promise<Card[]> {
       .eq('tcgplayer_id', numericId)
       .limit(10);
     if (!error && data && data.length > 0) {
-      return data as Card[];
+      return (data as Card[]).map(c => ({
+        ...c,
+        image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+      }));
     }
   }
 
@@ -273,7 +321,10 @@ export async function searchCards(query: string): Promise<Card[]> {
       .limit(100);
 
     if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
-    return (data ?? []) as Card[];
+    return ((data ?? []) as Card[]).map(c => ({
+      ...c,
+      image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+    }));
   }
 
   const hasDonWord = words.some(w => {
@@ -302,7 +353,10 @@ export async function searchCards(query: string): Promise<Card[]> {
       .limit(50);
 
     if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
-    return (data ?? []) as Card[];
+    return ((data ?? []) as Card[]).map(c => ({
+      ...c,
+      image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+    }));
   }
 
   let reqQuery = supabase
@@ -331,7 +385,10 @@ export async function searchCards(query: string): Promise<Card[]> {
     .limit(30);
 
   if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
-  return (data ?? []) as Card[];
+  return ((data ?? []) as Card[]).map(c => ({
+    ...c,
+    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+  }));
 }
 
 let cachedSets: SetSummary[] | null = null;
@@ -365,21 +422,44 @@ export async function getCardSets(): Promise<SetSummary[]> {
     const code = c.set_code || 'OTROS';
     const name = c.set_name || code;
     if (!map.has(code)) {
-      map.set(code, { set_name: name, count: 0, sample_image: c.image_url });
+      map.set(code, { set_name: name, count: 0, sample_image: null });
     }
     const item = map.get(code)!;
     item.count++;
-    if (!item.sample_image && c.image_url) {
+
+    // Priorizar imágenes que ya son URLs públicas online (https://)
+    if (c.image_url && c.image_url.startsWith('https://') && !item.sample_image?.startsWith('https://')) {
+      item.sample_image = c.image_url;
+    } else if (!item.sample_image && c.image_url) {
       item.sample_image = c.image_url;
     }
   }
 
-  const result: SetSummary[] = Array.from(map.entries()).map(([set_code, val]) => ({
-    set_code,
-    set_name: val.set_name,
-    count: val.count,
-    sample_image: val.sample_image
-  }));
+  const result: SetSummary[] = Array.from(map.entries()).map(([set_code, val]) => {
+    let resolvedImage = val.sample_image;
+    // Si la imagen es local o no existe, resolver a un CDN público garantizado
+    if (!resolvedImage || resolvedImage.startsWith('/images/cards/')) {
+      if (set_code === 'DON') {
+        resolvedImage = 'https://tcgplayer-cdn.tcgplayer.com/product/655914_in_1000x1000.jpg';
+      } else if (set_code === 'PROMO') {
+        resolvedImage = 'https://tcgplayer-cdn.tcgplayer.com/product/566953_in_1000x1000.jpg';
+      } else if (set_code === 'OTROS') {
+        resolvedImage = 'https://tcgplayer-cdn.tcgplayer.com/product/454664_in_1000x1000.jpg';
+      } else if (/^[A-Z]{1,4}-\d+$/i.test(set_code)) {
+        const clean = set_code.replace('-', '');
+        resolvedImage = `https://www.optcgapi.com/media/static/Card_Images/${clean}-001.jpg`;
+      }
+    }
+    if (!resolvedImage) {
+      resolvedImage = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';
+    }
+    return {
+      set_code,
+      set_name: val.set_name,
+      count: val.count,
+      sample_image: resolvedImage
+    };
+  });
 
   // Ordenar: DON primero, luego OP, EB, ST, PRB, PROMO, etc.
   result.sort((a, b) => {
@@ -437,7 +517,10 @@ export async function getSavedCardsBySet(setCode?: string, rarity?: string): Pro
     page++;
   }
 
-  return all;
+  return all.map(c => ({
+    ...c,
+    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+  }));
 }
 
 export async function getAllSavedCards(): Promise<Card[]> {
@@ -458,7 +541,10 @@ export async function getAllSavedCards(): Promise<Card[]> {
     if (data.length < 1000) break;
     page++;
   }
-  return all;
+  return all.map(c => ({
+    ...c,
+    image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code)
+  }));
 }
 
 // ─── GET PRICE HISTORY ──────────────────────────────────────────────────────

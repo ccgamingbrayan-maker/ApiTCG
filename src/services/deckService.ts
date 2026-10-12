@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { getAllInventory } from './inventoryService';
+import { resolveCardImageUrl } from './cardService';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -177,7 +178,7 @@ export async function analyzeDeckList(rawText: string, deckName = 'Nuevo Deck'):
 
     const rarity = dbCard?.rarity || 'C';
     const cardName = dbCard?.name || `Carta ${code}`;
-    const cardImg = dbCard?.image_url || '/images/cards/OP01-013.jpg';
+    const cardImg = resolveCardImageUrl(dbCard?.image_url, code, dbCard?.set_code) || `https://www.optcgapi.com/media/static/Card_Images/${code}.jpg`;
 
     // Identificar líder (raridad L, L-AA, o 1x al inicio con rareza Leader)
     if (!leaderInfo && (rarity === 'L' || rarity === 'L-AA' || cardName.toLowerCase().includes('leader'))) {
