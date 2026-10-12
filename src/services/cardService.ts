@@ -79,8 +79,14 @@ export async function downloadHighQualityImage(
 
 export function resolveCardImageUrl(imageUrl: string | null | undefined, cardNumber?: string | null, setCode?: string | null): string {
   if (!imageUrl) {
+    if (cardNumber && /^don_(\d+)/i.test(cardNumber)) {
+      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${cardNumber.toLowerCase()}.jpg`;
+    }
     if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
       return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}.jpg`;
+    }
+    if (setCode === 'DON') {
+      return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
     return '';
   }
@@ -96,15 +102,24 @@ export function resolveCardImageUrl(imageUrl: string | null | undefined, cardNum
     const filename = imageUrl.replace(/^\/images\/cards\//, '');
     const cleanName = filename.replace(/\.(jpg|jpeg|png|webp)$/i, '');
 
+    // 1. TCGPlayer ID (all numbers like 655914, 715682, etc.)
     const tcgMatch = cleanName.match(/^(\d+)/);
     if (tcgMatch) {
       return `https://tcgplayer-cdn.tcgplayer.com/product/${tcgMatch[1]}_in_1000x1000.jpg`;
     }
 
-    if (/don/i.test(cleanName) || setCode === 'DON') {
-      return 'https://tcgplayer-cdn.tcgplayer.com/product/655914_in_1000x1000.jpg';
+    // 2. DON card with specific number (don_1, don_9, etc.)
+    const donMatch = cleanName.match(/^don_(\d+)/i) || (cardNumber && cardNumber.match(/^don_(\d+)/i));
+    if (donMatch) {
+      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/don_${donMatch[1]}.jpg`;
     }
 
+    // 3. Generic DON card fallback
+    if (/^don$/i.test(cleanName) || setCode === 'DON') {
+      return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
+    }
+
+    // 4. One Piece card number (e.g. OP01-001)
     const num = cardNumber || cleanName;
     const opMatch = num.match(/^([A-Z]{1,3})-?(\d{2})-?(\d{3})/i);
     if (opMatch) {

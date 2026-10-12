@@ -9,8 +9,14 @@ const fmtCurrency = (num) => {
 // Garantiza URLs en alta calidad evitando miniaturas pixeladas y resolviendo rutas locales a CDN público
 const getHighQualityImageUrl = (url, cardNumber, setCode) => {
   if (!url) {
+    if (cardNumber && /^don_(\d+)/i.test(cardNumber)) {
+      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${cardNumber.toLowerCase()}.jpg`;
+    }
     if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
       return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}.jpg`;
+    }
+    if (setCode === 'DON') {
+      return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
     return '';
   }
@@ -24,8 +30,13 @@ const getHighQualityImageUrl = (url, cardNumber, setCode) => {
       return `https://tcgplayer-cdn.tcgplayer.com/product/${tcgMatch[1]}_in_1000x1000.jpg`;
     }
 
-    if (/don/i.test(cleanName) || setCode === 'DON') {
-      return 'https://tcgplayer-cdn.tcgplayer.com/product/655914_in_1000x1000.jpg';
+    const donMatch = cleanName.match(/^don_(\d+)/i) || (cardNumber && cardNumber.match(/^don_(\d+)/i));
+    if (donMatch) {
+      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/don_${donMatch[1]}.jpg`;
+    }
+
+    if (/^don$/i.test(cleanName) || setCode === 'DON') {
+      return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
 
     const num = cardNumber || cleanName;
@@ -1737,9 +1748,12 @@ function renderInventoryCards(items) {
       cardEl.className = 'group relative flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm hover:border-indigo-500 hover:shadow-indigo-500/10 transition cursor-pointer';
       
       const displayNum = getDisplayCardNumber(item);
-      const displayImg = getHighQualityImageUrl(item.image_url, displayNum, item.set_code);
+      const displayImg = getHighQualityImageUrl(item.image_url, item.card_number || displayNum, item.set_code);
+      const fallbackSrc = (item.set_code === 'DON' || item.rarity === 'DON' || displayNum === 'DON!!')
+        ? 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png'
+        : `https://www.optcgapi.com/media/static/Card_Images/${displayNum}.jpg`;
       const imgHtml = displayImg
-        ? `<img src="${displayImg}" alt="${item.card_name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='https://www.optcgapi.com/media/static/Card_Images/${displayNum}.jpg';">`
+        ? `<img src="${displayImg}" alt="${item.card_name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='${fallbackSrc}';">`
         : `<div class="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
       
       cardEl.innerHTML = `

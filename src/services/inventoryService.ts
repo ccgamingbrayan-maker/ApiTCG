@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { resolveCardImageUrl } from './cardService';
 import fs from 'fs';
 import path from 'path';
 
@@ -157,7 +158,7 @@ export async function getAllInventory(): Promise<InventorySummary> {
             card_name: d.cards?.name || 'Desconocida',
             set_code: resolved.set_code,
             rarity: resolved.rarity,
-            image_url: d.cards?.image_url || null,
+            image_url: resolveCardImageUrl(d.cards?.image_url, d.cards?.card_number || resolved.card_number, resolved.set_code),
             tcgplayer_url: d.cards?.tcgplayer_url || '',
             quantity: Number(d.quantity) || 1,
             purchase_price: Number(d.purchase_price) || 0,
