@@ -8,10 +8,11 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 async function run() {
   console.log('🌟 Iniciando la Extracción de la Base de Datos Oficial (One Piece Card Game)');
   
-  const browser = await chromium.launch({ 
-    headless: true,
-    channel: 'msedge' // Usar Edge nativo de Windows
-  });
+  const launchOptions: any = { headless: true };
+  if (process.platform === 'win32') {
+    launchOptions.channel = 'msedge';
+  }
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage();
   
   try {

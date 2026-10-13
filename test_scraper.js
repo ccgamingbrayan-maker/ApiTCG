@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  const launchOptions = process.platform === 'win32' ? { channel: 'msedge', headless: true } : { headless: true };
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage();
   await page.goto('https://www.tcgplayer.com/search/one-piece-card-game/product?q=imu&view=grid', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(4000);

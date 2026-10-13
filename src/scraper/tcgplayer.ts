@@ -1,4 +1,5 @@
 import { chromium, Browser, Page } from 'playwright';
+import { execSync } from 'child_process';
 import { ScrapedCardData, CardContext } from '../types';
 
 const TCGPLAYER_BASE_URL = 'https://www.tcgplayer.com';
@@ -17,17 +18,52 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function createBrowser(): Promise<Browser> {
-  return chromium.launch({
-    channel: 'msedge', // Usar el Edge que ya viene con Windows
-    headless: true, // Modo invisible (sin abrir ventanas emergentes)
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-infobars',
-      '--disable-dev-shm-usage',
-    ],
-  });
+  const commonArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-blink-features=AutomationControlled',
+    '--disable-infobars',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+  ];
+
+  const isWin = process.platform === 'win32';
+  // En Windows preferimos 'msedge' para no forzar descarga extra en local.
+  // En Linux/servidores preferimos el chromium estándar de Playwright o el navegador del sistema.
+  const candidates: ({ channel?: string } | undefined)[] = isWin
+    ? [{ channel: 'msedge' }, { channel: 'chrome' }, {}]
+    : [{}, { channel: 'chrome' }, { channel: 'chromium' }, { channel: 'msedge' }];
+
+  let lastError: any = null;
+
+  for (const candidate of candidates) {
+    try {
+      return await chromium.launch({
+        ...candidate,
+        headless: true,
+        args: commonArgs,
+      });
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+
+  // Si falló porque no hay navegador instalado en el servidor, intentar auto-instalar chromium de Playwright
+  const errStr = (lastError?.message || String(lastError)).toLowerCase();
+  if (errStr.includes("executable doesn't exist") || errStr.includes('playwright install') || errStr.includes('not found')) {
+    console.log('[Scraper] 🌐 Navegador no encontrado. Intentando instalar Chromium de Playwright en el servidor...');
+    try {
+      execSync('npx playwright install chromium', { stdio: 'inherit' });
+      return await chromium.launch({
+        headless: true,
+        args: commonArgs,
+      });
+    } catch (installErr: any) {
+      console.error('[Scraper] Error al auto-instalar Chromium:', installErr.message);
+    }
+  }
+
+  throw new Error(`Error al iniciar navegador en el servidor: ${lastError?.message || lastError}`);
 }
 
 async function createStealthPage(browser: Browser): Promise<Page> {
