@@ -72,6 +72,13 @@ cardsRouter.post('/scrape', async (req: Request, res: Response) => {
     });
 
     if (!scraped) {
+      if (card_id) {
+        const existing = await buildPriceSummary(card_id);
+        if (existing) {
+          console.log(`[Route] Scrape retornó null, devolviendo datos existentes de DB para: ${card_id}`);
+          return res.json({ success: true, data: existing } as ApiResponse<typeof existing>);
+        }
+      }
       return res.status(404).json({ success: false, error: 'Card not found or page structure changed' } as ApiResponse<null>);
     }
 
@@ -89,6 +96,15 @@ cardsRouter.post('/scrape', async (req: Request, res: Response) => {
 
     return res.json({ success: true, data: summary } as ApiResponse<typeof summary>);
   } catch (err: unknown) {
+    if (card_id) {
+      try {
+        const existing = await buildPriceSummary(card_id);
+        if (existing) {
+          console.log(`[Route] Scrape falló por error de entorno, devolviendo datos existentes de DB para: ${card_id}`);
+          return res.json({ success: true, data: existing } as ApiResponse<typeof existing>);
+        }
+      } catch {}
+    }
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[Route] Scrape error: ${message}`);
     return res.status(500).json({ success: false, error: message } as ApiResponse<null>);

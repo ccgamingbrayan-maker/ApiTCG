@@ -102,10 +102,187 @@ function parsePrice(priceStr: string | null | undefined): number | null {
 }
 
 /**
+ * Búsqueda directa HTTP contra la API interna de TCGPlayer (sin navegador, instantánea y 100% compatible con Vercel)
+ */
+export async function searchTcgDirectApi(query: string): Promise<any[]> {
+  try {
+    const res = await fetch(`https://mp-search-api.tcgplayer.com/v1/search/request?q=${encodeURIComponent(query)}&isList=false`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      body: JSON.stringify({
+        algorithm: 'sales_synonym_v2',
+        from: 0,
+        size: 15,
+        filters: { term: { productLineName: ['one-piece-card-game'] } }
+      })
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.results?.[0]?.results || [];
+  } catch (err: any) {
+    console.warn('[TCG Direct API] Error en búsqueda directa:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Consulta de precios directa por Product ID de TCGPlayer (sin navegador)
+ */
+export async function fetchPricePointsDirect(productId: number): Promise<{ marketPrice: number | null; medianPrice: number | null }> {
+  try {
+    const res = await fetch(`https://mpapi.tcgplayer.com/v2/product/${productId}/pricepoints`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      }
+    });
+    if (!res.ok) return { marketPrice: null, medianPrice: null };
+    const points = await res.json();
+    if (Array.isArray(points)) {
+      const valid = points.find((p: any) => p.marketPrice || p.listedMedianPrice);
+      if (valid) {
+        return {
+          marketPrice: valid.marketPrice ? parseFloat(valid.marketPrice) : null,
+          medianPrice: valid.listedMedianPrice ? parseFloat(valid.listedMedianPrice) : null
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[TCG Direct API] Error en pricepoints directos:', err.message);
+  }
+  return { marketPrice: null, medianPrice: null };
+}
+
+/**
+ * Resuelve una carta y sus precios mediante la API directa de TCGPlayer sin requerir navegador
+ */
+export async function scrapeCardDirectApi(tcgplayerUrl: string, context?: CardContext): Promise<ScrapedCardData | null> {
+  try {
+    let query = (context?.card_number || '').trim();
+    if (!query && context?.name) query = context.name;
+    if (!query && tcgplayerUrl) {
+      const qMatch = tcgplayerUrl.match(/[?&]q=([^&]+)/);
+      if (qMatch) query = decodeURIComponent(qMatch[1]);
+    }
+
+    const idMatch = tcgplayerUrl ? tcgplayerUrl.match(/\/product\/(\d+)/) : null;
+    const targetId = idMatch ? parseInt(idMatch[1], 10) : null;
+
+    let candidates: any[] = [];
+    if (query) {
+      candidates = await searchTcgDirectApi(query);
+    }
+
+    let chosen: any = null;
+    if (targetId && candidates.length > 0) {
+      chosen = candidates.find((c: any) => c.productId === targetId);
+    }
+
+    if (!chosen && candidates.length > 0) {
+      const reqRarity = (context?.rarity || '').toUpperCase();
+      const reqName = (context?.name || '').toLowerCase();
+      const isAA = reqRarity.includes('AA') || reqRarity.includes('PARALLEL') || reqName.includes('alternate art') || reqName.includes('parallel');
+      const isManga = reqRarity.includes('MANGA') || reqName.includes('manga');
+
+      if (isManga) {
+        chosen = candidates.find((c: any) => c.productName.toLowerCase().includes('manga'));
+      } else if (isAA) {
+        chosen = candidates.find((c: any) => (c.productName.toLowerCase().includes('alternate art') || c.productName.toLowerCase().includes('parallel')) && !c.productName.toLowerCase().includes('manga'));
+      } else {
+        chosen = candidates.find((c: any) => !c.productName.toLowerCase().includes('alternate art') && !c.productName.toLowerCase().includes('manga') && !c.productName.toLowerCase().includes('parallel'));
+      }
+      if (!chosen) chosen = candidates[0];
+    }
+
+    // Si tenemos targetId directo de la URL
+    if (!chosen && targetId) {
+      const points = await fetchPricePointsDirect(targetId);
+      if (points.marketPrice !== null || points.medianPrice !== null) {
+        const slug = tcgplayerUrl.match(/\/product\/\d+(?:\/([^?#]+))?/)?.[1] || '';
+        const cleanTitle = slug
+          ? slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+          : (context?.name || 'One Piece Card');
+
+        return {
+          card_id: context?.card_id,
+          tcgplayer_id: targetId,
+          name: context?.name || cleanTitle,
+          set_name: context?.set_name || 'One Piece Card Game',
+          set_code: context?.set_code || '',
+          card_number: context?.card_number || '',
+          rarity: context?.rarity || 'C',
+          image_url: `https://tcgplayer-cdn.tcgplayer.com/product/${targetId}_in_1000x1000.jpg`,
+          tcgplayer_url: `https://www.tcgplayer.com/product/${targetId}`,
+          prices: {
+            market_price: points.marketPrice,
+            low_price: null,
+            mid_price: points.medianPrice,
+            high_price: null,
+            direct_low_price: null,
+            last_sale_price: null,
+          },
+          recent_sales: [],
+        };
+      }
+    }
+
+    if (chosen) {
+      const prodId = chosen.productId;
+      const marketPrice = chosen.marketPrice ? parseFloat(chosen.marketPrice) : null;
+      const lowPrice = chosen.lowestPrice ? parseFloat(chosen.lowestPrice) : null;
+      const midPrice = chosen.medianPrice ? parseFloat(chosen.medianPrice) : null;
+
+      return {
+        card_id: context?.card_id,
+        tcgplayer_id: prodId,
+        name: chosen.productName,
+        set_name: chosen.setName || context?.set_name || 'One Piece Card Game',
+        set_code: context?.set_code || chosen.setCode || '',
+        card_number: context?.card_number || chosen.customAttributes?.number || '',
+        rarity: context?.rarity || chosen.customAttributes?.rarityDbName || chosen.rarityName || 'C',
+        image_url: `https://tcgplayer-cdn.tcgplayer.com/product/${prodId}_in_1000x1000.jpg`,
+        tcgplayer_url: `https://www.tcgplayer.com/product/${prodId}`,
+        prices: {
+          market_price: marketPrice,
+          low_price: lowPrice,
+          mid_price: midPrice,
+          high_price: null,
+          direct_low_price: null,
+          last_sale_price: null,
+        },
+        recent_sales: [],
+      };
+    }
+  } catch (err: any) {
+    console.warn('[TCG Direct API] scrapeCardDirectApi error:', err.message);
+  }
+  return null;
+}
+
+/**
  * Scrapes a single card page from TCGPlayer using the product ID URL
  * e.g. https://www.tcgplayer.com/product/12345/one-piece-card-game-...
  */
 export async function scrapeCardByUrl(tcgplayerUrl: string, context?: CardContext): Promise<ScrapedCardData | null> {
+  // 1. Intentar primero con la API directa HTTP (instantánea, sin navegador, 100% compatible con Vercel)
+  try {
+    const directData = await scrapeCardDirectApi(tcgplayerUrl, context);
+    if (directData && (directData.prices.market_price || directData.prices.low_price || directData.prices.mid_price)) {
+      console.log(`[Scraper] ⚡ Resuelto instantáneamente vía API directa de TCGPlayer: "${directData.name}" ($${directData.prices.market_price})`);
+      return directData;
+    }
+  } catch (err: any) {
+    console.warn('[Scraper] API directa no disponible, intentando navegador:', err.message);
+  }
+
+  // 2. Si estamos en Vercel y no hay navegador, evitar abrir Playwright para prevenir timeout o crash
+  if (process.env.VERCEL) {
+    console.log('[Scraper] Entorno Vercel detectado; omitiendo Playwright.');
+    return null;
+  }
+
   const browser = await createBrowser();
   try {
     const page = await createStealthPage(browser);
@@ -446,11 +623,40 @@ export async function scrapeCardByUrl(tcgplayerUrl: string, context?: CardContex
  * Searches TCGPlayer for One Piece cards by name
  * Returns an array of product URLs found in the search results
  */
-export async function searchCardsByName(cardName: string): Promise<Array<{ name: string; url: string; price: string | null }>> {
+export async function searchCardsByName(cardName: string): Promise<Array<{ name: string; url: string; price: string | null; image_url?: string | null }>> {
+  let cleanName = cardName.replace(/_small(\.[a-z0-9]+)?/gi, '').replace(/_p\d+/gi, '').trim();
+  if (cleanName.toLowerCase() === 'don' || cleanName.toLowerCase() === 'don!' || cleanName.toLowerCase() === 'don!!') {
+    cleanName = 'DON!! Card';
+  } else if (cleanName.toLowerCase().startsWith('don ') || cleanName.toLowerCase().startsWith('don! ') || cleanName.toLowerCase().startsWith('don!! ')) {
+    const rest = cleanName.replace(/^don!* /i, '').trim();
+    cleanName = `DON!! Card ${rest}`;
+  }
+
+  // 1. Intentar primero con la API directa HTTP (instantáneo, sin navegador y 100% compatible con Vercel)
+  try {
+    const directResults = await searchTcgDirectApi(cleanName);
+    if (directResults && directResults.length > 0) {
+      console.log(`[Scraper] ⚡ Búsqueda resuelta instantáneamente vía API directa (${directResults.length} resultados) para: "${cleanName}"`);
+      return directResults.map((i: any) => ({
+        name: i.productName,
+        url: `https://www.tcgplayer.com/product/${i.productId}`,
+        price: i.marketPrice ? `$${parseFloat(i.marketPrice).toFixed(2)}` : (i.lowestPrice ? `$${parseFloat(i.lowestPrice).toFixed(2)}` : null),
+        image_url: `https://tcgplayer-cdn.tcgplayer.com/product/${i.productId}_in_1000x1000.jpg`
+      }));
+    }
+  } catch (err: any) {
+    console.warn('[Scraper] API directa falló en búsqueda, intentando navegador:', err.message);
+  }
+
+  // Si estamos en Vercel, omitir Playwright para no bloquear la función serverless
+  if (process.env.VERCEL) {
+    console.log('[Scraper] Entorno Vercel detectado; omitiendo navegador.');
+    return [];
+  }
+
   const browser = await createBrowser();
   try {
     const page = await createStealthPage(browser);
-    let cleanName = cardName.replace(/_small(\.[a-z0-9]+)?/gi, '').replace(/_p\d+/gi, '').trim();
     if (cleanName.toLowerCase() === 'don' || cleanName.toLowerCase() === 'don!' || cleanName.toLowerCase() === 'don!!') {
       cleanName = 'DON!! Card';
     } else if (cleanName.toLowerCase().startsWith('don ') || cleanName.toLowerCase().startsWith('don! ') || cleanName.toLowerCase().startsWith('don!! ')) {

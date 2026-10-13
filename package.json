@@ -16,8 +16,7 @@
     "update-rarities": "tsx src/scripts/updateHighRarities.ts",
     "seed-variants": "tsx src/scripts/seedAllVariants.ts",
     "build:css": "tailwindcss -i src/input.css -o public/style.css --minify",
-    "watch:css": "tailwindcss -i src/input.css -o public/style.css --watch",
-    "postinstall": "npx playwright install chromium || true"
+    "watch:css": "tailwindcss -i src/input.css -o public/style.css --watch"
   },
   "keywords": [
     "tcg",
