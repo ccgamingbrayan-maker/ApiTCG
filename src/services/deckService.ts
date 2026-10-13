@@ -120,6 +120,61 @@ export function parseDeckListText(rawText: string): Map<string, number> {
 }
 
 /**
+ * Ordena las cartas de un deck en orden oficial:
+ * 1. Líder primero
+ * 2. Agrupadas por tipo de Set (OP, EB, ST, P, etc.)
+ * 3. Orden numérico de Set (01 -> 17...)
+ * 4. Orden numérico de Carta (001 -> 120...)
+ */
+export function sortDeckCardsList<T extends { card_number: string; rarity?: string }>(cards: T[], leaderCode?: string): T[] {
+  return [...cards].sort((a, b) => {
+    const isLeaderA = (leaderCode && a.card_number === leaderCode) || a.rarity === 'L' || a.rarity === 'L-AA';
+    const isLeaderB = (leaderCode && b.card_number === leaderCode) || b.rarity === 'L' || b.rarity === 'L-AA';
+    if (isLeaderA && !isLeaderB) return -1;
+    if (!isLeaderA && isLeaderB) return 1;
+
+    const parseCode = (code = '') => {
+      const match = code.trim().toUpperCase().match(/^([A-Z]+)(\d*)-(\d+)(.*)$/);
+      if (match) {
+        return {
+          prefix: match[1],
+          setNum: parseInt(match[2] || '0', 10),
+          cardNum: parseInt(match[3], 10),
+          suffix: match[4] || ''
+        };
+      }
+      return { prefix: code, setNum: 0, cardNum: 0, suffix: '' };
+    };
+
+    const parsedA = parseCode(a.card_number);
+    const parsedB = parseCode(b.card_number);
+
+    const prefixPriority = (p: string) => {
+      if (p === 'OP') return 1;
+      if (p === 'EB') return 2;
+      if (p === 'ST') return 3;
+      if (p === 'P') return 4;
+      return 5;
+    };
+
+    const prioA = prefixPriority(parsedA.prefix);
+    const prioB = prefixPriority(parsedB.prefix);
+    if (prioA !== prioB) return prioA - prioB;
+
+    if (parsedA.prefix !== parsedB.prefix) {
+      return parsedA.prefix.localeCompare(parsedB.prefix);
+    }
+    if (parsedA.setNum !== parsedB.setNum) {
+      return parsedA.setNum - parsedB.setNum;
+    }
+    if (parsedA.cardNum !== parsedB.cardNum) {
+      return parsedA.cardNum - parsedB.cardNum;
+    }
+    return parsedA.suffix.localeCompare(parsedB.suffix);
+  });
+}
+
+/**
  * Analiza una lista de deck contra el inventario físico y la base de datos oficial
  */
 export async function analyzeDeckList(rawText: string, deckName = 'Nuevo Deck'): Promise<DeckAnalysisResult> {
@@ -212,15 +267,18 @@ export async function analyzeDeckList(rawText: string, deckName = 'Nuevo Deck'):
     };
   }
 
+  // Ordenar cartas lógicamente: Líder primero, luego por Set (OP01-OP17, EB, ST, etc.) y número correlativo
+  const sortedCardItems = sortDeckCardsList(cardItems, leaderInfo?.card_number);
+
   // Generar texto exportable de faltantes
-  const missingTextLines = cardItems
+  const missingTextLines = sortedCardItems
     .filter(c => c.missing > 0)
     .map(c => `${c.missing}x${c.card_number}`);
   const missingCardsText = missingTextLines.join('\n');
 
   const completionPercent = totalNeeded > 0 ? Math.round((totalOwnedInDeck / totalNeeded) * 100) : 0;
-  const uniqueComplete = cardItems.filter(c => c.is_complete).length;
-  const uniqueMissing = cardItems.filter(c => !c.is_complete).length;
+  const uniqueComplete = sortedCardItems.filter(c => c.is_complete).length;
+  const uniqueMissing = sortedCardItems.filter(c => !c.is_complete).length;
 
   return {
     id: crypto.randomUUID(),
@@ -230,11 +288,11 @@ export async function analyzeDeckList(rawText: string, deckName = 'Nuevo Deck'):
     total_cards_owned: totalOwnedInDeck,
     total_cards_missing: totalMissing,
     completion_percent: completionPercent,
-    unique_cards_count: cardItems.length,
+    unique_cards_count: sortedCardItems.length,
     unique_complete_count: uniqueComplete,
     unique_missing_count: uniqueMissing,
     leader: leaderInfo,
-    cards: cardItems,
+    cards: sortedCardItems,
     missing_cards_text: missingCardsText,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()

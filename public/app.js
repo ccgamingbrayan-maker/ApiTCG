@@ -2769,14 +2769,15 @@ btnViewSavedDecksToggle?.addEventListener('click', () => {
   }
 });
 
-// ─── EXPORTACIÓN DE LISTA EN IMAGEN (CANVAS / GRID ESTILO OPTCGSIM) ───────
+// ─── EXPORTACIÓN DE LISTA EN IMAGEN (CANVAS / GRID ESTILO ONE PIECE) ───────
 const btnExportMissingImage = document.getElementById('btnExportMissingImage');
 const modalDeckImageExport = document.getElementById('modalDeckImageExport');
 const btnCloseDeckImageModal = document.getElementById('btnCloseDeckImageModal');
 const btnImgModeMissing = document.getElementById('btnImgModeMissing');
 const btnImgModeAll = document.getElementById('btnImgModeAll');
+const btnImgThemeGrandLine = document.getElementById('btnImgThemeGrandLine');
+const btnImgThemeParchment = document.getElementById('btnImgThemeParchment');
 const btnImgThemeWhite = document.getElementById('btnImgThemeWhite');
-const btnImgThemeDark = document.getElementById('btnImgThemeDark');
 const deckImageLoadingSpinner = document.getElementById('deckImageLoadingSpinner');
 const deckExportImagePreview = document.getElementById('deckExportImagePreview');
 const btnActionCopyImageBlob = document.getElementById('btnActionCopyImageBlob');
@@ -2785,7 +2786,81 @@ const btnActionDownloadImagePng = document.getElementById('btnActionDownloadImag
 let currentExportCanvas = null;
 let currentExportBlob = null;
 let exportModeMissing = true;
-let exportThemeWhite = true;
+let exportTheme = 'grandline'; // 'grandline' (One Piece Pirata) | 'parchment' (Mapa Antiguo) | 'white' (Limpio)
+
+/**
+ * Ordena las cartas de un deck en orden oficial:
+ * 1. Líder primero
+ * 2. Agrupadas por tipo de Set (OP, EB, ST, P, etc.)
+ * 3. Orden numérico de Set (01 -> 17...)
+ * 4. Orden numérico de Carta (001 -> 120...)
+ */
+function sortDeckCards(cards, leaderCode = null) {
+  return [...cards].sort((a, b) => {
+    const isLeaderA = (leaderCode && a.card_number === leaderCode) || a.rarity === 'L' || a.rarity === 'L-AA';
+    const isLeaderB = (leaderCode && b.card_number === leaderCode) || b.rarity === 'L' || b.rarity === 'L-AA';
+    if (isLeaderA && !isLeaderB) return -1;
+    if (!isLeaderA && isLeaderB) return 1;
+
+    const parseCode = (code = '') => {
+      const match = code.trim().toUpperCase().match(/^([A-Z]+)(\d*)-(\d+)(.*)$/);
+      if (match) {
+        return {
+          prefix: match[1],
+          setNum: parseInt(match[2] || '0', 10),
+          cardNum: parseInt(match[3], 10),
+          suffix: match[4] || ''
+        };
+      }
+      return { prefix: code, setNum: 0, cardNum: 0, suffix: '' };
+    };
+
+    const parsedA = parseCode(a.card_number);
+    const parsedB = parseCode(b.card_number);
+
+    const prefixPriority = (p) => {
+      if (p === 'OP') return 1;
+      if (p === 'EB') return 2;
+      if (p === 'ST') return 3;
+      if (p === 'P') return 4;
+      return 5;
+    };
+
+    const prioA = prefixPriority(parsedA.prefix);
+    const prioB = prefixPriority(parsedB.prefix);
+    if (prioA !== prioB) return prioA - prioB;
+
+    if (parsedA.prefix !== parsedB.prefix) {
+      return parsedA.prefix.localeCompare(parsedB.prefix);
+    }
+    if (parsedA.setNum !== parsedB.setNum) {
+      return parsedA.setNum - parsedB.setNum;
+    }
+    if (parsedA.cardNum !== parsedB.cardNum) {
+      return parsedA.cardNum - parsedB.cardNum;
+    }
+    return parsedA.suffix.localeCompare(parsedB.suffix);
+  });
+}
+
+// Helper para dibujar rectángulos redondeados con compatibilidad hacia atrás
+function drawCanvasRoundRect(ctx, x, y, w, h, r = 8) {
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+}
 
 async function openDeckImageExportModal() {
   if (!currentDeckAnalysis || !currentDeckAnalysis.cards || currentDeckAnalysis.cards.length === 0) {
@@ -2806,6 +2881,9 @@ async function renderDeckExportImage() {
     cardsToRender = cardsToRender.filter(c => c.missing > 0);
   }
 
+  // Ordenar siempre las cartas en orden oficial (Líder primero, luego por Set y correlativo)
+  cardsToRender = sortDeckCards(cardsToRender, currentDeckAnalysis.leader?.card_number);
+
   if (cardsToRender.length === 0) {
     deckImageLoadingSpinner.innerHTML = `
       <div class="text-center py-6 text-emerald-400">
@@ -2818,15 +2896,15 @@ async function renderDeckExportImage() {
   }
 
   deckImageLoadingSpinner.innerHTML = `
-    <i class="fa-solid fa-spinner fa-spin text-2xl text-purple-400 mb-2"></i>
-    <span>Generando cuadrícula de ${cardsToRender.length} cartas en alta resolución...</span>
+    <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-400 mb-2"></i>
+    <span>Generando cuadrícula de ${cardsToRender.length} cartas en tema ${exportTheme === 'grandline' ? 'Grand Line 🏴‍☠️' : (exportTheme === 'parchment' ? 'Pergamino 📜' : 'Blanco ⚪')}...</span>
   `;
 
   try {
     const canvas = await generateDeckCanvasGrid(cardsToRender, {
       deckName: currentDeckAnalysis.name || 'Deck One Piece',
       isMissingMode: exportModeMissing,
-      isWhiteTheme: exportThemeWhite
+      theme: exportTheme
     });
 
     currentExportCanvas = canvas;
@@ -2847,22 +2925,23 @@ async function generateDeckCanvasGrid(cards, options = {}) {
   const {
     deckName = 'Deck One Piece',
     isMissingMode = true,
-    isWhiteTheme = true
+    theme = 'grandline' // 'grandline' | 'parchment' | 'white'
   } = options;
 
   const cols = 4;
   const cardW = 210;
-  const cardH = 294; // Ratio aproximado 1:1.4
-  const gapX = 18;
-  const gapY = 16;
-  const labelH = 34; // Espacio para etiqueta 'x4' en itálica debajo de la carta
-  const padding = 26;
-  const headerH = 76;
-  const footerH = 36;
+  const cardH = 294; // Ratio estándar TCG 1:1.4
+  const gapX = 22;
+  const gapY = 22;
+  const dockH = 28;
+  const labelH = dockH + 8; // Espacio para el badge dock inferior
+  const padding = 32;
+  const headerH = 92;
 
   const rows = Math.ceil(cards.length / cols);
   const totalW = padding * 2 + cols * cardW + (cols - 1) * gapX;
-  const totalH = headerH + padding * 2 + rows * (cardH + labelH) + (rows - 1) * gapY + footerH;
+  // Sin pie de página (footerH eliminado) para un diseño balanceado y limpio
+  const totalH = headerH + padding + rows * (cardH + labelH) + (rows - 1) * gapY + padding;
 
   const canvas = document.createElement('canvas');
   canvas.width = totalW;
@@ -2870,42 +2949,284 @@ async function generateDeckCanvasGrid(cards, options = {}) {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No se pudo inicializar contexto Canvas 2D');
 
-  // Fondo
-  if (isWhiteTheme) {
-    ctx.fillStyle = '#ffffff';
+  // 1. DIBUJAR FONDO SEGÚN EL TEMA
+  if (theme === 'grandline') {
+    // Fondo temático Grand Line: Océano profundo con gradiente naval
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, totalH);
+    bgGrad.addColorStop(0, '#09152b'); // Azul marino profundo
+    bgGrad.addColorStop(0.5, '#060e1d');
+    bgGrad.addColorStop(1, '#020611'); // Abismo oceánico
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, totalW, totalH);
+
+    // Cuadrícula cartográfica náutica sutil (latitud / longitud)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.035)';
+    ctx.lineWidth = 1;
+    for (let gx = 0; gx < totalW; gx += 48) {
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, totalH);
+      ctx.stroke();
+    }
+    for (let gy = 0; gy < totalH; gy += 48) {
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(totalW, gy);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Rosa de los Vientos (Compass Rose) de la Grand Line en marca de agua
+    const cx = totalW / 2;
+    const cy = headerH + padding + ((rows * (cardH + labelH) + (rows - 1) * gapY) / 2);
+    ctx.save();
+    // Anillos concéntricos dorados
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 260, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.06)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 180, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 70, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Estrella náutica de 8 puntas tridimensional
+    const starPoints = 8;
+    const outerR = 250;
+    const midR = 140;
+    const innerR = 35;
+
+    for (let i = 0; i < starPoints; i++) {
+      const angle = (i * Math.PI) / 4;
+      const currentR = i % 2 === 0 ? outerR : midR;
+
+      // Semitriangular en dorado visible
+      ctx.fillStyle = 'rgba(212, 175, 55, 0.07)';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * currentR, cy + Math.sin(angle) * currentR);
+      ctx.lineTo(cx + Math.cos(angle + Math.PI / 8) * innerR, cy + Math.sin(angle + Math.PI / 8) * innerR);
+      ctx.closePath();
+      ctx.fill();
+
+      // Semitriangular en dorado suave
+      ctx.fillStyle = 'rgba(212, 175, 55, 0.025)';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * currentR, cy + Math.sin(angle) * currentR);
+      ctx.lineTo(cx + Math.cos(angle - Math.PI / 8) * innerR, cy + Math.sin(angle - Math.PI / 8) * innerR);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Puntos cardinales estilizados
+    ctx.fillStyle = 'rgba(212, 175, 55, 0.22)';
+    ctx.font = 'bold 16px "Cinzel", "Georgia", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('N', cx, cy - 280);
+    ctx.fillText('S', cx, cy + 280);
+    ctx.fillText('E', cx + 280, cy);
+    ctx.fillText('W', cx - 280, cy);
+    ctx.restore();
+
+    // Marco pirata ornamental de doble línea dorada
+    ctx.save();
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(14, 14, totalW - 28, totalH - 28);
+
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(20, 20, totalW - 40, totalH - 40);
+
+    // Detalles ornamentales en las esquinas
+    const drawCornerDiamond = (dx, dy) => {
+      ctx.fillStyle = '#d4af37';
+      ctx.beginPath();
+      ctx.moveTo(dx, dy - 5);
+      ctx.lineTo(dx + 5, dy);
+      ctx.lineTo(dx, dy + 5);
+      ctx.lineTo(dx - 5, dy);
+      ctx.closePath();
+      ctx.fill();
+    };
+    drawCornerDiamond(20, 20);
+    drawCornerDiamond(totalW - 20, 20);
+    drawCornerDiamond(20, totalH - 20);
+    drawCornerDiamond(totalW - 20, totalH - 20);
+    ctx.restore();
+
+  } else if (theme === 'parchment') {
+    // Fondo temático Pergamino / Mapa de Tesoro
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, totalH);
+    bgGrad.addColorStop(0, '#f7f1e1');
+    bgGrad.addColorStop(0.5, '#ede2cb');
+    bgGrad.addColorStop(1, '#decfae');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, totalW, totalH);
+
+    // Cuadrícula sepia sutil
+    ctx.save();
+    ctx.strokeStyle = 'rgba(139, 90, 43, 0.04)';
+    ctx.lineWidth = 1;
+    for (let gx = 0; gx < totalW; gx += 48) {
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, totalH);
+      ctx.stroke();
+    }
+    for (let gy = 0; gy < totalH; gy += 48) {
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(totalW, gy);
+      ctx.stroke();
+    }
+
+    // Rosa de los vientos en sepia
+    const cx = totalW / 2;
+    const cy = headerH + padding + ((rows * (cardH + labelH) + (rows - 1) * gapY) / 2);
+    ctx.strokeStyle = 'rgba(139, 90, 43, 0.1)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 240, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Marco antiguo en tono cuero/madera
+    ctx.strokeStyle = 'rgba(100, 60, 25, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(14, 14, totalW - 28, totalH - 28);
+    ctx.strokeStyle = 'rgba(100, 60, 25, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(20, 20, totalW - 40, totalH - 40);
+    ctx.restore();
+
   } else {
-    ctx.fillStyle = '#090d16';
+    // Fondo Blanco minimalista
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, totalW, totalH);
   }
-  ctx.fillRect(0, 0, totalW, totalH);
 
-  // Cabecera / Banner
+  // 2. CABECERA / BANNER PRINCIPAL
   ctx.save();
-  const titleColor = isWhiteTheme ? '#0f172a' : '#f8fafc';
-  const subtitleColor = isWhiteTheme ? '#64748b' : '#94a3b8';
+  const isDarkBase = theme === 'grandline';
+  const isParchment = theme === 'parchment';
+  const titleColor = isDarkBase ? '#ffffff' : (isParchment ? '#2b1708' : '#0f172a');
 
-  // Título principal
-  ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  // Tag superior One Piece Card Game
+  const tagText = '⚓ ONE PIECE CARD GAME';
+  ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const tagW = ctx.measureText(tagText).width + 18;
+  const tagH = 20;
+  const tagX = padding;
+  const tagY = padding - 4;
+
+  if (isDarkBase) {
+    ctx.fillStyle = 'rgba(212, 175, 55, 0.12)';
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+  } else if (isParchment) {
+    ctx.fillStyle = 'rgba(139, 90, 43, 0.1)';
+    ctx.strokeStyle = 'rgba(139, 90, 43, 0.25)';
+  } else {
+    ctx.fillStyle = '#f1f5f9';
+    ctx.strokeStyle = '#cbd5e1';
+  }
+  ctx.lineWidth = 1;
+  drawCanvasRoundRect(ctx, tagX, tagY, tagW, tagH, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = isDarkBase ? '#fbbf24' : (isParchment ? '#78350f' : '#475569');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(tagText, tagX + tagW / 2, tagY + tagH / 2);
+
+  // Título principal del Deck / Faltantes
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = titleColor;
   const headerTitle = isMissingMode ? `CARTAS FALTANTES: ${deckName}` : `LISTA DE DECK: ${deckName}`;
-  ctx.fillText(headerTitle, padding, padding + 26);
+  ctx.fillText(headerTitle, padding, padding + 44);
 
-  // Subtítulo con métricas
+  // Subtítulo con métricas estructuradas en badges
   const totalCardsSum = cards.reduce((acc, c) => acc + (isMissingMode ? c.missing : c.needed), 0);
-  ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillStyle = subtitleColor;
-  const subText = `${cards.length} tipos de cartas • Total: ${totalCardsSum} unidades • ${new Date().toLocaleDateString()}`;
-  ctx.fillText(subText, padding, padding + 48);
+  const pillY = padding + 54;
+  const pillH = 22;
+  let pillX = padding;
 
-  // Línea separadora
-  ctx.strokeStyle = isWhiteTheme ? '#e2e8f0' : '#1e293b';
+  const drawMetricPill = (text, bg, textColor, border) => {
+    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const textW = ctx.measureText(text).width;
+    const w = textW + 16;
+    ctx.fillStyle = bg;
+    ctx.strokeStyle = border || 'transparent';
+    ctx.lineWidth = 1;
+    drawCanvasRoundRect(ctx, pillX, pillY, w, pillH, 4);
+    ctx.fill();
+    if (border) ctx.stroke();
+
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, pillX + w / 2, pillY + pillH / 2);
+    pillX += w + 8;
+  };
+
+  if (isDarkBase) {
+    drawMetricPill(`${cards.length} Tipos de Cartas`, 'rgba(56, 189, 248, 0.12)', '#38bdf8', 'rgba(56, 189, 248, 0.3)');
+    drawMetricPill(`Total: ${totalCardsSum} ${isMissingMode ? 'Faltantes' : 'Cartas'}`, isMissingMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)', isMissingMode ? '#f87171' : '#4ade80', isMissingMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)');
+    drawMetricPill(`${new Date().toLocaleDateString()}`, 'rgba(255, 255, 255, 0.06)', '#94a3b8', 'rgba(255, 255, 255, 0.12)');
+  } else if (isParchment) {
+    drawMetricPill(`${cards.length} Tipos de Cartas`, 'rgba(139, 90, 43, 0.12)', '#593110', 'rgba(139, 90, 43, 0.25)');
+    drawMetricPill(`Total: ${totalCardsSum} ${isMissingMode ? 'Faltantes' : 'Cartas'}`, isMissingMode ? 'rgba(185, 28, 28, 0.12)' : 'rgba(21, 128, 61, 0.12)', isMissingMode ? '#991b1b' : '#15803d', isMissingMode ? 'rgba(185, 28, 28, 0.3)' : 'rgba(21, 128, 61, 0.3)');
+    drawMetricPill(`${new Date().toLocaleDateString()}`, 'rgba(0, 0, 0, 0.05)', '#6b4f2c', 'rgba(0, 0, 0, 0.1)');
+  } else {
+    drawMetricPill(`${cards.length} Tipos de Cartas`, '#f1f5f9', '#334155', '#cbd5e1');
+    drawMetricPill(`Total: ${totalCardsSum} ${isMissingMode ? 'Faltantes' : 'Cartas'}`, isMissingMode ? '#fef2f2' : '#f0fdf4', isMissingMode ? '#b91c1c' : '#15803d', isMissingMode ? '#fecaca' : '#bbf7d0');
+    drawMetricPill(`${new Date().toLocaleDateString()}`, '#f8fafc', '#64748b', '#e2e8f0');
+  }
+
+  // Línea divisoria elegante con diamante central
+  const divY = headerH + padding - 6;
   ctx.lineWidth = 1;
+  if (isDarkBase) {
+    const lineGrad = ctx.createLinearGradient(padding, 0, totalW - padding, 0);
+    lineGrad.addColorStop(0, 'rgba(212, 175, 55, 0.1)');
+    lineGrad.addColorStop(0.5, 'rgba(212, 175, 55, 0.6)');
+    lineGrad.addColorStop(1, 'rgba(212, 175, 55, 0.1)');
+    ctx.strokeStyle = lineGrad;
+  } else if (isParchment) {
+    ctx.strokeStyle = 'rgba(139, 90, 43, 0.3)';
+  } else {
+    ctx.strokeStyle = '#e2e8f0';
+  }
   ctx.beginPath();
-  ctx.moveTo(padding, headerH + padding - 12);
-  ctx.lineTo(totalW - padding, headerH + padding - 12);
+  ctx.moveTo(padding, divY);
+  ctx.lineTo(totalW - padding, divY);
   ctx.stroke();
+
+  // Diamante central en la línea
+  if (isDarkBase || isParchment) {
+    ctx.fillStyle = isDarkBase ? '#d4af37' : '#8b5a2b';
+    ctx.beginPath();
+    ctx.moveTo(totalW / 2, divY - 4);
+    ctx.lineTo(totalW / 2 + 4, divY);
+    ctx.lineTo(totalW / 2, divY + 4);
+    ctx.lineTo(totalW / 2 - 4, divY);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.restore();
 
-  // Helper para precargar imagen con proxy anti-CORS
+  // 3. CARGA DE IMÁGENES MEDIANTE PROXY ANTI-CORS
   const loadImage = (src) => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -2929,7 +3250,6 @@ async function generateDeckCanvasGrid(cards, options = {}) {
     });
   };
 
-  // Cargar imágenes
   const loadedImages = await Promise.all(
     cards.map(c => {
       const isAA = (c.rarity && (c.rarity.includes('AA') || c.rarity.includes('PARALLEL'))) ||
@@ -2938,7 +3258,7 @@ async function generateDeckCanvasGrid(cards, options = {}) {
     })
   );
 
-  // Dibujar cada carta en la cuadrícula
+  // 4. DIBUJAR CADA CARTA EN LA CUADRÍCULA ORDENADA
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
     const img = loadedImages[i];
@@ -2948,67 +3268,111 @@ async function generateDeckCanvasGrid(cards, options = {}) {
     const x = padding + col * (cardW + gapX);
     const y = headerH + padding + row * (cardH + labelH + gapY);
 
-    // 1. Imagen de carta con esquinas redondeadas
+    // Sombra proyectada detrás de la carta (efecto 3D realista)
     ctx.save();
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(x, y, cardW, cardH, 8);
-    } else {
-      ctx.rect(x, y, cardW, cardH);
-    }
+    ctx.shadowColor = theme === 'white' ? 'rgba(0, 0, 0, 0.16)' : 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = theme === 'white' ? '#e2e8f0' : '#040711';
+    drawCanvasRoundRect(ctx, x, y, cardW, cardH, 8);
+    ctx.fill();
+    ctx.restore();
+
+    // Imagen de la carta con esquinas redondeadas
+    ctx.save();
+    drawCanvasRoundRect(ctx, x, y, cardW, cardH, 8);
     ctx.clip();
 
     if (img) {
       ctx.drawImage(img, x, y, cardW, cardH);
     } else {
-      ctx.fillStyle = isWhiteTheme ? '#f1f5f9' : '#1e293b';
+      ctx.fillStyle = isDarkBase ? '#0f172a' : (isParchment ? '#d8c5a4' : '#f1f5f9');
       ctx.fillRect(x, y, cardW, cardH);
-      ctx.fillStyle = subtitleColor;
-      ctx.font = 'bold 12px sans-serif';
+      ctx.fillStyle = isDarkBase ? '#94a3b8' : '#64748b';
+      ctx.font = 'bold 13px monospace';
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText(card.card_number, x + cardW / 2, y + cardH / 2);
     }
     ctx.restore();
 
-    // 2. Borde exterior de la carta
+    // Borde exterior de la carta (efecto sleeve / funda)
     ctx.save();
-    ctx.strokeStyle = isWhiteTheme ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(x, y, cardW, cardH, 8);
+    if (theme === 'grandline') {
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
+    } else if (theme === 'parchment') {
+      ctx.strokeStyle = 'rgba(120, 70, 30, 0.35)';
     } else {
-      ctx.rect(x, y, cardW, cardH);
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
     }
+    ctx.lineWidth = 1.5;
+    drawCanvasRoundRect(ctx, x, y, cardW, cardH, 8);
     ctx.stroke();
     ctx.restore();
 
-    // 3. Etiqueta inferior idéntica a la referencia: 'x1', 'x4' en itálica elegante
+    // DOCK INFERIOR ESTILIZADO DE INFORMACIÓN (Cantidad + Código)
+    const dockY = y + cardH + 7;
     ctx.save();
+
+    // Fondo del dock
+    if (theme === 'grandline') {
+      ctx.fillStyle = 'rgba(10, 20, 38, 0.9)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+    } else if (theme === 'parchment') {
+      ctx.fillStyle = 'rgba(235, 222, 198, 0.95)';
+      ctx.strokeStyle = 'rgba(140, 90, 40, 0.3)';
+    } else {
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.95)';
+      ctx.strokeStyle = 'rgba(203, 213, 225, 0.8)';
+    }
+    ctx.lineWidth = 1;
+    drawCanvasRoundRect(ctx, x, dockY, cardW, dockH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Insignia de Cantidad a la izquierda
+    const isLeader = (currentDeckAnalysis?.leader?.card_number === card.card_number) || card.rarity === 'L' || card.rarity === 'L-AA';
     const qty = isMissingMode ? card.missing : card.needed;
     
-    // Cursiva 'x4' a la izquierda
-    ctx.font = 'italic bold 21px "Segoe UI", Georgia, "Times New Roman", serif';
-    ctx.fillStyle = isWhiteTheme ? '#0284c7' : '#38bdf8'; // Toque azul premium
-    ctx.textAlign = 'left';
-    ctx.fillText(`x${qty}`, x + 4, y + cardH + 22);
+    let badgeBg = '#0284c7';
+    let badgeText = `x${qty}`;
+    let badgeW = 38;
+
+    if (isLeader) {
+      badgeBg = '#d97706'; // Dorado Líder
+      badgeText = '👑 L';
+      badgeW = 44;
+    } else if (qty >= 4) {
+      badgeBg = '#dc2626'; // Rojo alta demanda
+      badgeText = `x${qty}`;
+    } else if (qty >= 2) {
+      badgeBg = '#d97706'; // Ámbar medio
+      badgeText = `x${qty}`;
+    } else {
+      badgeBg = '#0284c7'; // Azul / Celeste
+      badgeText = `x${qty}`;
+    }
+
+    ctx.fillStyle = badgeBg;
+    drawCanvasRoundRect(ctx, x + 3, dockY + 3, badgeW, dockH - 6, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, x + 3 + badgeW / 2, dockY + dockH / 2);
 
     // Código de la carta a la derecha
-    ctx.font = 'bold 11px monospace';
-    ctx.fillStyle = isWhiteTheme ? '#64748b' : '#94a3b8';
+    ctx.font = 'bold 12px "SF Mono", "Roboto Mono", Menlo, Consolas, monospace';
+    ctx.fillStyle = theme === 'grandline' ? '#f1f5f9' : (theme === 'parchment' ? '#2b1708' : '#334155');
     ctx.textAlign = 'right';
-    ctx.fillText(card.card_number, x + cardW - 2, y + cardH + 20);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(card.card_number, x + cardW - 8, dockY + dockH / 2);
     ctx.restore();
   }
 
-  // Footer / Pie de página
-  ctx.save();
-  ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillStyle = isWhiteTheme ? '#94a3b8' : '#64748b';
-  ctx.textAlign = 'center';
-  ctx.fillText('Generado con One Piece TCG Tracker • Catálogo & Precios Oficiales', totalW / 2, totalH - 14);
-  ctx.restore();
-
+  // PIE DE PÁGINA ELIMINADO: No se dibuja ningún texto inferior a petición del usuario.
   return canvas;
 }
 
@@ -3017,7 +3381,7 @@ function downloadCurrentExportImage() {
   const link = document.createElement('a');
   const safeName = (currentDeckAnalysis?.name || 'deck').replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
   const mode = exportModeMissing ? 'faltantes' : 'completo';
-  link.download = `deck_${mode}_${safeName}.png`;
+  link.download = `deck_${mode}_${safeName}_${exportTheme}.png`;
   link.href = currentExportCanvas.toDataURL('image/png');
   link.click();
 }
@@ -3042,18 +3406,40 @@ btnImgModeAll?.addEventListener('click', () => {
   renderDeckExportImage();
 });
 
-// Selector de tema: Blanco vs Oscuro
-btnImgThemeWhite?.addEventListener('click', () => {
-  exportThemeWhite = true;
-  btnImgThemeWhite.className = 'px-2.5 py-1 rounded-md bg-purple-600 text-white font-medium transition';
-  btnImgThemeDark.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition';
+// Selector de tema: Grand Line vs Pergamino vs Blanco
+function updateThemeButtonsUI() {
+  if (btnImgThemeGrandLine) {
+    btnImgThemeGrandLine.className = exportTheme === 'grandline'
+      ? 'px-2.5 py-1 rounded-md bg-amber-500 text-slate-950 font-bold transition flex items-center gap-1 shadow-sm'
+      : 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition flex items-center gap-1';
+  }
+  if (btnImgThemeParchment) {
+    btnImgThemeParchment.className = exportTheme === 'parchment'
+      ? 'px-2.5 py-1 rounded-md bg-amber-700 text-white font-bold transition flex items-center gap-1 shadow-sm'
+      : 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition flex items-center gap-1';
+  }
+  if (btnImgThemeWhite) {
+    btnImgThemeWhite.className = exportTheme === 'white'
+      ? 'px-2.5 py-1 rounded-md bg-slate-200 text-slate-900 font-bold transition flex items-center gap-1 shadow-sm'
+      : 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition flex items-center gap-1';
+  }
+}
+
+btnImgThemeGrandLine?.addEventListener('click', () => {
+  exportTheme = 'grandline';
+  updateThemeButtonsUI();
   renderDeckExportImage();
 });
 
-btnImgThemeDark?.addEventListener('click', () => {
-  exportThemeWhite = false;
-  btnImgThemeDark.className = 'px-2.5 py-1 rounded-md bg-purple-600 text-white font-medium transition';
-  btnImgThemeWhite.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition';
+btnImgThemeParchment?.addEventListener('click', () => {
+  exportTheme = 'parchment';
+  updateThemeButtonsUI();
+  renderDeckExportImage();
+});
+
+btnImgThemeWhite?.addEventListener('click', () => {
+  exportTheme = 'white';
+  updateThemeButtonsUI();
   renderDeckExportImage();
 });
 
