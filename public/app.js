@@ -2786,7 +2786,25 @@ const btnActionDownloadImagePng = document.getElementById('btnActionDownloadImag
 let currentExportCanvas = null;
 let currentExportBlob = null;
 let exportModeMissing = true;
-let exportTheme = 'grandline'; // 'grandline' (One Piece Pirata) | 'parchment' (Mapa Antiguo) | 'white' (Limpio)
+let cachedDeckExportBgImage = null;
+
+function loadDeckExportBgImage() {
+  if (cachedDeckExportBgImage && cachedDeckExportBgImage.complete && cachedDeckExportBgImage.naturalWidth > 0) {
+    return Promise.resolve(cachedDeckExportBgImage);
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      cachedDeckExportBgImage = img;
+      resolve(img);
+    };
+    img.onerror = () => {
+      console.warn('No se pudo cargar la imagen de fondo oficial One Piece');
+      resolve(null);
+    };
+    img.src = '/images/deck-export-bg.jpg';
+  });
+}
 
 /**
  * Ordena las cartas de un deck en orden oficial:
@@ -2897,14 +2915,12 @@ async function renderDeckExportImage() {
 
   deckImageLoadingSpinner.innerHTML = `
     <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-400 mb-2"></i>
-    <span>Generando cuadrícula de ${cardsToRender.length} cartas en tema ${exportTheme === 'grandline' ? 'Grand Line 🏴‍☠️' : (exportTheme === 'parchment' ? 'Pergamino 📜' : 'Blanco ⚪')}...</span>
+    <span>Generando cuadrícula de ${cardsToRender.length} cartas con fondo One Piece...</span>
   `;
 
   try {
     const canvas = await generateDeckCanvasGrid(cardsToRender, {
-      deckName: currentDeckAnalysis.name || 'Deck One Piece',
-      isMissingMode: exportModeMissing,
-      theme: exportTheme
+      isMissingMode: exportModeMissing
     });
 
     currentExportCanvas = canvas;
@@ -2923,9 +2939,7 @@ async function renderDeckExportImage() {
 
 async function generateDeckCanvasGrid(cards, options = {}) {
   const {
-    deckName = 'Deck One Piece',
-    isMissingMode = true,
-    theme = 'grandline' // 'grandline' | 'parchment' | 'white'
+    isMissingMode = true
   } = options;
 
   const cols = 4;
@@ -2935,13 +2949,12 @@ async function generateDeckCanvasGrid(cards, options = {}) {
   const gapY = 22;
   const dockH = 28;
   const labelH = dockH + 8; // Espacio para el badge dock inferior
-  const padding = 32;
-  const headerH = 92;
+  const padding = 28;
 
   const rows = Math.ceil(cards.length / cols);
   const totalW = padding * 2 + cols * cardW + (cols - 1) * gapX;
-  // Sin pie de página (footerH eliminado) para un diseño balanceado y limpio
-  const totalH = headerH + padding + rows * (cardH + labelH) + (rows - 1) * gapY + padding;
+  // Sin cabecera ni pie de página: cartas limpias sobre el fondo oficial One Piece
+  const totalH = padding * 2 + rows * (cardH + labelH) + (rows - 1) * gapY;
 
   const canvas = document.createElement('canvas');
   canvas.width = totalW;
@@ -2949,284 +2962,38 @@ async function generateDeckCanvasGrid(cards, options = {}) {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No se pudo inicializar contexto Canvas 2D');
 
-  // 1. DIBUJAR FONDO SEGÚN EL TEMA
-  if (theme === 'grandline') {
-    // Fondo temático Grand Line: Océano profundo con gradiente naval
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, totalH);
-    bgGrad.addColorStop(0, '#09152b'); // Azul marino profundo
-    bgGrad.addColorStop(0.5, '#060e1d');
-    bgGrad.addColorStop(1, '#020611'); // Abismo oceánico
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, totalW, totalH);
+  // 1. DIBUJAR FONDO CON LA IMAGEN OFICIAL ONE PIECE (MAPA Y BRÚJULA)
+  const bgImg = await loadDeckExportBgImage();
 
-    // Cuadrícula cartográfica náutica sutil (latitud / longitud)
-    ctx.save();
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.035)';
-    ctx.lineWidth = 1;
-    for (let gx = 0; gx < totalW; gx += 48) {
-      ctx.beginPath();
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, totalH);
-      ctx.stroke();
-    }
-    for (let gy = 0; gy < totalH; gy += 48) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(totalW, gy);
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    // Rosa de los Vientos (Compass Rose) de la Grand Line en marca de agua
-    const cx = totalW / 2;
-    const cy = headerH + padding + ((rows * (cardH + labelH) + (rows - 1) * gapY) / 2);
-    ctx.save();
-    // Anillos concéntricos dorados
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.12)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 260, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.06)';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 180, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, 70, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Estrella náutica de 8 puntas tridimensional
-    const starPoints = 8;
-    const outerR = 250;
-    const midR = 140;
-    const innerR = 35;
-
-    for (let i = 0; i < starPoints; i++) {
-      const angle = (i * Math.PI) / 4;
-      const currentR = i % 2 === 0 ? outerR : midR;
-
-      // Semitriangular en dorado visible
-      ctx.fillStyle = 'rgba(212, 175, 55, 0.07)';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(angle) * currentR, cy + Math.sin(angle) * currentR);
-      ctx.lineTo(cx + Math.cos(angle + Math.PI / 8) * innerR, cy + Math.sin(angle + Math.PI / 8) * innerR);
-      ctx.closePath();
-      ctx.fill();
-
-      // Semitriangular en dorado suave
-      ctx.fillStyle = 'rgba(212, 175, 55, 0.025)';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(angle) * currentR, cy + Math.sin(angle) * currentR);
-      ctx.lineTo(cx + Math.cos(angle - Math.PI / 8) * innerR, cy + Math.sin(angle - Math.PI / 8) * innerR);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // Puntos cardinales estilizados
-    ctx.fillStyle = 'rgba(212, 175, 55, 0.22)';
-    ctx.font = 'bold 16px "Cinzel", "Georgia", serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('N', cx, cy - 280);
-    ctx.fillText('S', cx, cy + 280);
-    ctx.fillText('E', cx + 280, cy);
-    ctx.fillText('W', cx - 280, cy);
-    ctx.restore();
-
-    // Marco pirata ornamental de doble línea dorada
-    ctx.save();
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(14, 14, totalW - 28, totalH - 28);
-
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.18)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(20, 20, totalW - 40, totalH - 40);
-
-    // Detalles ornamentales en las esquinas
-    const drawCornerDiamond = (dx, dy) => {
-      ctx.fillStyle = '#d4af37';
-      ctx.beginPath();
-      ctx.moveTo(dx, dy - 5);
-      ctx.lineTo(dx + 5, dy);
-      ctx.lineTo(dx, dy + 5);
-      ctx.lineTo(dx - 5, dy);
-      ctx.closePath();
-      ctx.fill();
-    };
-    drawCornerDiamond(20, 20);
-    drawCornerDiamond(totalW - 20, 20);
-    drawCornerDiamond(20, totalH - 20);
-    drawCornerDiamond(totalW - 20, totalH - 20);
-    ctx.restore();
-
-  } else if (theme === 'parchment') {
-    // Fondo temático Pergamino / Mapa de Tesoro
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, totalH);
-    bgGrad.addColorStop(0, '#f7f1e1');
-    bgGrad.addColorStop(0.5, '#ede2cb');
-    bgGrad.addColorStop(1, '#decfae');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, totalW, totalH);
-
-    // Cuadrícula sepia sutil
-    ctx.save();
-    ctx.strokeStyle = 'rgba(139, 90, 43, 0.04)';
-    ctx.lineWidth = 1;
-    for (let gx = 0; gx < totalW; gx += 48) {
-      ctx.beginPath();
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, totalH);
-      ctx.stroke();
-    }
-    for (let gy = 0; gy < totalH; gy += 48) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(totalW, gy);
-      ctx.stroke();
-    }
-
-    // Rosa de los vientos en sepia
-    const cx = totalW / 2;
-    const cy = headerH + padding + ((rows * (cardH + labelH) + (rows - 1) * gapY) / 2);
-    ctx.strokeStyle = 'rgba(139, 90, 43, 0.1)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 240, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Marco antiguo en tono cuero/madera
-    ctx.strokeStyle = 'rgba(100, 60, 25, 0.4)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(14, 14, totalW - 28, totalH - 28);
-    ctx.strokeStyle = 'rgba(100, 60, 25, 0.18)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(20, 20, totalW - 40, totalH - 40);
-    ctx.restore();
-
-  } else {
-    // Fondo Blanco minimalista
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, totalW, totalH);
-  }
-
-  // 2. CABECERA / BANNER PRINCIPAL
   ctx.save();
-  const isDarkBase = theme === 'grandline';
-  const isParchment = theme === 'parchment';
-  const titleColor = isDarkBase ? '#ffffff' : (isParchment ? '#2b1708' : '#0f172a');
+  // Base pergamino cálida de respaldo
+  ctx.fillStyle = '#decfae';
+  ctx.fillRect(0, 0, totalW, totalH);
 
-  // Tag superior One Piece Card Game
-  const tagText = '⚓ ONE PIECE CARD GAME';
-  ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  const tagW = ctx.measureText(tagText).width + 18;
-  const tagH = 20;
-  const tagX = padding;
-  const tagY = padding - 4;
-
-  if (isDarkBase) {
-    ctx.fillStyle = 'rgba(212, 175, 55, 0.12)';
-    ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
-  } else if (isParchment) {
-    ctx.fillStyle = 'rgba(139, 90, 43, 0.1)';
-    ctx.strokeStyle = 'rgba(139, 90, 43, 0.25)';
-  } else {
-    ctx.fillStyle = '#f1f5f9';
-    ctx.strokeStyle = '#cbd5e1';
+  if (bgImg) {
+    // Modo cover manteniendo las proporciones geométricas de la brújula y el mapa
+    const scale = Math.max(totalW / bgImg.naturalWidth, totalH / bgImg.naturalHeight);
+    const drawW = bgImg.naturalWidth * scale;
+    const drawH = bgImg.naturalHeight * scale;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bgImg, 0, 0, drawW, drawH);
   }
-  ctx.lineWidth = 1;
-  drawCanvasRoundRect(ctx, tagX, tagY, tagW, tagH, 4);
-  ctx.fill();
+
+  // Marco exterior blanco estilo reverso de carta One Piece con esquinas redondeadas
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 14;
+  drawCanvasRoundRect(ctx, 7, 7, totalW - 14, totalH - 14, 20);
   ctx.stroke();
 
-  ctx.fillStyle = isDarkBase ? '#fbbf24' : (isParchment ? '#78350f' : '#475569');
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(tagText, tagX + tagW / 2, tagY + tagH / 2);
-
-  // Título principal del Deck / Faltantes
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillStyle = titleColor;
-  const headerTitle = isMissingMode ? `CARTAS FALTANTES: ${deckName}` : `LISTA DE DECK: ${deckName}`;
-  ctx.fillText(headerTitle, padding, padding + 44);
-
-  // Subtítulo con métricas estructuradas en badges
-  const totalCardsSum = cards.reduce((acc, c) => acc + (isMissingMode ? c.missing : c.needed), 0);
-  const pillY = padding + 54;
-  const pillH = 22;
-  let pillX = padding;
-
-  const drawMetricPill = (text, bg, textColor, border) => {
-    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const textW = ctx.measureText(text).width;
-    const w = textW + 16;
-    ctx.fillStyle = bg;
-    ctx.strokeStyle = border || 'transparent';
-    ctx.lineWidth = 1;
-    drawCanvasRoundRect(ctx, pillX, pillY, w, pillH, 4);
-    ctx.fill();
-    if (border) ctx.stroke();
-
-    ctx.fillStyle = textColor;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, pillX + w / 2, pillY + pillH / 2);
-    pillX += w + 8;
-  };
-
-  if (isDarkBase) {
-    drawMetricPill(`${cards.length} Tipos de Cartas`, 'rgba(56, 189, 248, 0.12)', '#38bdf8', 'rgba(56, 189, 248, 0.3)');
-    drawMetricPill(`Total: ${totalCardsSum} ${isMissingMode ? 'Faltantes' : 'Cartas'}`, isMissingMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)', isMissingMode ? '#f87171' : '#4ade80', isMissingMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)');
-    drawMetricPill(`${new Date().toLocaleDateString()}`, 'rgba(255, 255, 255, 0.06)', '#94a3b8', 'rgba(255, 255, 255, 0.12)');
-  } else if (isParchment) {
-    drawMetricPill(`${cards.length} Tipos de Cartas`, 'rgba(139, 90, 43, 0.12)', '#593110', 'rgba(139, 90, 43, 0.25)');
-    drawMetricPill(`Total: ${totalCardsSum} ${isMissingMode ? 'Faltantes' : 'Cartas'}`, isMissingMode ? 'rgba(185, 28, 28, 0.12)' : 'rgba(21, 128, 61, 0.12)', isMissingMode ? '#991b1b' : '#15803d', isMissingMode ? 'rgba(185, 28, 28, 0.3)' : 'rgba(21, 128, 61, 0.3)');
-    drawMetricPill(`${new Date().toLocaleDateString()}`, 'rgba(0, 0, 0, 0.05)', '#6b4f2c', 'rgba(0, 0, 0, 0.1)');
-  } else {
-    drawMetricPill(`${cards.length} Tipos de Cartas`, '#f1f5f9', '#334155', '#cbd5e1');
-    drawMetricPill(`Total: ${totalCardsSum} ${isMissingMode ? 'Faltantes' : 'Cartas'}`, isMissingMode ? '#fef2f2' : '#f0fdf4', isMissingMode ? '#b91c1c' : '#15803d', isMissingMode ? '#fecaca' : '#bbf7d0');
-    drawMetricPill(`${new Date().toLocaleDateString()}`, '#f8fafc', '#64748b', '#e2e8f0');
-  }
-
-  // Línea divisoria elegante con diamante central
-  const divY = headerH + padding - 6;
-  ctx.lineWidth = 1;
-  if (isDarkBase) {
-    const lineGrad = ctx.createLinearGradient(padding, 0, totalW - padding, 0);
-    lineGrad.addColorStop(0, 'rgba(212, 175, 55, 0.1)');
-    lineGrad.addColorStop(0.5, 'rgba(212, 175, 55, 0.6)');
-    lineGrad.addColorStop(1, 'rgba(212, 175, 55, 0.1)');
-    ctx.strokeStyle = lineGrad;
-  } else if (isParchment) {
-    ctx.strokeStyle = 'rgba(139, 90, 43, 0.3)';
-  } else {
-    ctx.strokeStyle = '#e2e8f0';
-  }
-  ctx.beginPath();
-  ctx.moveTo(padding, divY);
-  ctx.lineTo(totalW - padding, divY);
+  // Sutil filete interior decorativo
+  ctx.strokeStyle = 'rgba(120, 70, 20, 0.25)';
+  ctx.lineWidth = 1.5;
+  drawCanvasRoundRect(ctx, 16, 16, totalW - 32, totalH - 32, 14);
   ctx.stroke();
-
-  // Diamante central en la línea
-  if (isDarkBase || isParchment) {
-    ctx.fillStyle = isDarkBase ? '#d4af37' : '#8b5a2b';
-    ctx.beginPath();
-    ctx.moveTo(totalW / 2, divY - 4);
-    ctx.lineTo(totalW / 2 + 4, divY);
-    ctx.lineTo(totalW / 2, divY + 4);
-    ctx.lineTo(totalW / 2 - 4, divY);
-    ctx.closePath();
-    ctx.fill();
-  }
   ctx.restore();
 
-  // 3. CARGA DE IMÁGENES MEDIANTE PROXY ANTI-CORS
+  // 2. CARGA DE IMÁGENES MEDIANTE PROXY ANTI-CORS
   const loadImage = (src) => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -3258,7 +3025,7 @@ async function generateDeckCanvasGrid(cards, options = {}) {
     })
   );
 
-  // 4. DIBUJAR CADA CARTA EN LA CUADRÍCULA ORDENADA
+  // 3. DIBUJAR CADA CARTA EN LA CUADRÍCULA ORDENADA
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
     const img = loadedImages[i];
@@ -3266,14 +3033,14 @@ async function generateDeckCanvasGrid(cards, options = {}) {
     const row = Math.floor(i / cols);
 
     const x = padding + col * (cardW + gapX);
-    const y = headerH + padding + row * (cardH + labelH + gapY);
+    const y = padding + row * (cardH + labelH + gapY);
 
     // Sombra proyectada detrás de la carta (efecto 3D realista)
     ctx.save();
-    ctx.shadowColor = theme === 'white' ? 'rgba(0, 0, 0, 0.16)' : 'rgba(0, 0, 0, 0.65)';
-    ctx.shadowBlur = 12;
+    ctx.shadowColor = 'rgba(30, 15, 5, 0.45)';
+    ctx.shadowBlur = 14;
     ctx.shadowOffsetY = 6;
-    ctx.fillStyle = theme === 'white' ? '#e2e8f0' : '#040711';
+    ctx.fillStyle = '#040711';
     drawCanvasRoundRect(ctx, x, y, cardW, cardH, 8);
     ctx.fill();
     ctx.restore();
@@ -3286,9 +3053,9 @@ async function generateDeckCanvasGrid(cards, options = {}) {
     if (img) {
       ctx.drawImage(img, x, y, cardW, cardH);
     } else {
-      ctx.fillStyle = isDarkBase ? '#0f172a' : (isParchment ? '#d8c5a4' : '#f1f5f9');
+      ctx.fillStyle = '#1e293b';
       ctx.fillRect(x, y, cardW, cardH);
-      ctx.fillStyle = isDarkBase ? '#94a3b8' : '#64748b';
+      ctx.fillStyle = '#94a3b8';
       ctx.font = 'bold 13px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -3298,13 +3065,7 @@ async function generateDeckCanvasGrid(cards, options = {}) {
 
     // Borde exterior de la carta (efecto sleeve / funda)
     ctx.save();
-    if (theme === 'grandline') {
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
-    } else if (theme === 'parchment') {
-      ctx.strokeStyle = 'rgba(120, 70, 30, 0.35)';
-    } else {
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
-    }
+    ctx.strokeStyle = 'rgba(100, 55, 20, 0.35)';
     ctx.lineWidth = 1.5;
     drawCanvasRoundRect(ctx, x, y, cardW, cardH, 8);
     ctx.stroke();
@@ -3314,17 +3075,9 @@ async function generateDeckCanvasGrid(cards, options = {}) {
     const dockY = y + cardH + 7;
     ctx.save();
 
-    // Fondo del dock
-    if (theme === 'grandline') {
-      ctx.fillStyle = 'rgba(10, 20, 38, 0.9)';
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
-    } else if (theme === 'parchment') {
-      ctx.fillStyle = 'rgba(235, 222, 198, 0.95)';
-      ctx.strokeStyle = 'rgba(140, 90, 40, 0.3)';
-    } else {
-      ctx.fillStyle = 'rgba(241, 245, 249, 0.95)';
-      ctx.strokeStyle = 'rgba(203, 213, 225, 0.8)';
-    }
+    // Fondo del dock en pergamino cálido de alta opacidad
+    ctx.fillStyle = 'rgba(248, 241, 228, 0.96)';
+    ctx.strokeStyle = 'rgba(130, 80, 35, 0.35)';
     ctx.lineWidth = 1;
     drawCanvasRoundRect(ctx, x, dockY, cardW, dockH, 6);
     ctx.fill();
@@ -3365,14 +3118,13 @@ async function generateDeckCanvasGrid(cards, options = {}) {
 
     // Código de la carta a la derecha
     ctx.font = 'bold 12px "SF Mono", "Roboto Mono", Menlo, Consolas, monospace';
-    ctx.fillStyle = theme === 'grandline' ? '#f1f5f9' : (theme === 'parchment' ? '#2b1708' : '#334155');
+    ctx.fillStyle = '#2b1708';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.fillText(card.card_number, x + cardW - 8, dockY + dockH / 2);
     ctx.restore();
   }
 
-  // PIE DE PÁGINA ELIMINADO: No se dibuja ningún texto inferior a petición del usuario.
   return canvas;
 }
 
@@ -3381,7 +3133,7 @@ function downloadCurrentExportImage() {
   const link = document.createElement('a');
   const safeName = (currentDeckAnalysis?.name || 'deck').replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
   const mode = exportModeMissing ? 'faltantes' : 'completo';
-  link.download = `deck_${mode}_${safeName}_${exportTheme}.png`;
+  link.download = `deck_${mode}_${safeName}.png`;
   link.href = currentExportCanvas.toDataURL('image/png');
   link.click();
 }
@@ -3403,43 +3155,6 @@ btnImgModeAll?.addEventListener('click', () => {
   exportModeMissing = false;
   btnImgModeAll.className = 'px-2.5 py-1 rounded-md bg-purple-600 text-white font-medium transition';
   btnImgModeMissing.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition';
-  renderDeckExportImage();
-});
-
-// Selector de tema: Grand Line vs Pergamino vs Blanco
-function updateThemeButtonsUI() {
-  if (btnImgThemeGrandLine) {
-    btnImgThemeGrandLine.className = exportTheme === 'grandline'
-      ? 'px-2.5 py-1 rounded-md bg-amber-500 text-slate-950 font-bold transition flex items-center gap-1 shadow-sm'
-      : 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition flex items-center gap-1';
-  }
-  if (btnImgThemeParchment) {
-    btnImgThemeParchment.className = exportTheme === 'parchment'
-      ? 'px-2.5 py-1 rounded-md bg-amber-700 text-white font-bold transition flex items-center gap-1 shadow-sm'
-      : 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition flex items-center gap-1';
-  }
-  if (btnImgThemeWhite) {
-    btnImgThemeWhite.className = exportTheme === 'white'
-      ? 'px-2.5 py-1 rounded-md bg-slate-200 text-slate-900 font-bold transition flex items-center gap-1 shadow-sm'
-      : 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition flex items-center gap-1';
-  }
-}
-
-btnImgThemeGrandLine?.addEventListener('click', () => {
-  exportTheme = 'grandline';
-  updateThemeButtonsUI();
-  renderDeckExportImage();
-});
-
-btnImgThemeParchment?.addEventListener('click', () => {
-  exportTheme = 'parchment';
-  updateThemeButtonsUI();
-  renderDeckExportImage();
-});
-
-btnImgThemeWhite?.addEventListener('click', () => {
-  exportTheme = 'white';
-  updateThemeButtonsUI();
   renderDeckExportImage();
 });
 
