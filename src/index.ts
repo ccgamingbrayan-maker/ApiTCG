@@ -30,16 +30,32 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 // otherwise, redirect directly to guaranteed public CDN (vital for production deployments)
 app.get('/images/cards/:filename', (req: Request, res: Response) => {
   const filename = req.params.filename;
-  const localPath = path.join(__dirname, '../public/images/cards', filename);
+  const localPath = path.resolve(process.cwd(), 'public/images/cards', filename);
   if (fs.existsSync(localPath)) {
     return res.sendFile(localPath);
+  }
+
+  // Extraer código base de la carta (ej: OP07-113_pr2 -> OP07-113, ST02-007_r1 -> ST02-007, P-085_pr1 -> P-085)
+  const cleanName = filename.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+  const baseCodeMatch = cleanName.match(/^([A-Z0-9]+-[A-Z0-9]+)/i);
+  const baseCode = baseCodeMatch ? baseCodeMatch[1].toUpperCase() : cleanName.split('_')[0].toUpperCase();
+
+  // Si es promocional P-xxx, redirigir a Supabase Storage público donde están las imágenes base
+  if (baseCode.startsWith('P-')) {
+    return res.redirect(302, `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.jpg`);
+  }
+
+  // Si es carta de set (OP, ST, EB, PRB), redirigir a la imagen base correspondiente a su propio código
+  if (baseCode.includes('-')) {
+    return res.redirect(302, `https://www.optcgapi.com/media/static/Card_Images/${baseCode}.jpg`);
   }
 
   const resolved = resolveCardImageUrl(`/images/cards/${filename}`);
   if (resolved && resolved.startsWith('http')) {
     return res.redirect(302, resolved);
   }
-  return res.redirect(302, 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg');
+
+  return res.status(404).send('Card image not found');
 });
 
 // Serve static frontend

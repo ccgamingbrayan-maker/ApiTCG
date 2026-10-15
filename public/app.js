@@ -302,14 +302,15 @@ function renderResults(cards) {
     const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
                  (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
     const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
-    const isPromo = (card.card_number && card.card_number.startsWith('P-')) || (card.set_code === 'PROMO');
+    const baseCode = (card.card_number || '').trim().toUpperCase();
+    const isPromo = baseCode.startsWith('P-') || (card.set_code === 'PROMO');
     const fallbackSrc = isPromo
-      ? `/images/cards/${card.card_number || 'P-001'}.jpg`
-      : (isAA 
-          ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
-          : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`);
+      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.jpg`
+      : (baseCode.includes('-')
+          ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}${isAA ? '_p1' : ''}.jpg`
+          : '');
     const imgHtml = displayImg 
-      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
+      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="if(this.dataset.fallbackDone){this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i><span class=\\'text-[10px]\\'>Sin imagen</span></div>';}else{this.dataset.fallbackDone='1';${fallbackSrc ? `this.src='${fallbackSrc}';` : `this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i><span class=\\'text-[10px]\\'>Sin imagen</span></div>';`}}">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i><span class="text-[10px]">Sin imagen</span></div>`;
 
     const rarityBadge = card.rarity ? getRarityBadgeHtml(card.rarity) : '';
@@ -1422,14 +1423,15 @@ function renderFolderCards(cards) {
     const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
                  (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
     const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
-    const isPromo = (card.card_number && card.card_number.startsWith('P-')) || (card.set_code === 'PROMO');
+    const baseCode = (card.card_number || '').trim().toUpperCase();
+    const isPromo = baseCode.startsWith('P-') || (card.set_code === 'PROMO');
     const fallbackSrc = isPromo
-      ? `/images/cards/${card.card_number || 'P-001'}.jpg`
-      : (isAA 
-          ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
-          : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`);
+      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.jpg`
+      : (baseCode.includes('-')
+          ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}${isAA ? '_p1' : ''}.jpg`
+          : '');
     const imgHtml = displayImg 
-      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
+      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="if(this.dataset.fallbackDone){this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i></div>';}else{this.dataset.fallbackDone='1';${fallbackSrc ? `this.src='${fallbackSrc}';` : `this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i></div>';`}}">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
       
     el.innerHTML = `
@@ -2097,14 +2099,15 @@ modalCardSearchInput?.addEventListener('input', (e) => {
           const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
                        (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
           const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
-          const isPromo = (card.card_number && card.card_number.startsWith('P-')) || (card.set_code === 'PROMO');
+          const baseCode = (card.card_number || '').trim().toUpperCase();
+          const isPromo = baseCode.startsWith('P-') || (card.set_code === 'PROMO');
           const fallbackSrc = isPromo
-            ? `/images/cards/${card.card_number || 'P-001'}.jpg`
-            : (isAA 
-                ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
-                : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`);
+            ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.jpg`
+            : (baseCode.includes('-')
+                ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}${isAA ? '_p1' : ''}.jpg`
+                : '');
           const img = displayImg 
-            ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
+            ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="if(this.dataset.fallbackDone){this.style.display='none';}else{this.dataset.fallbackDone='1';${fallbackSrc ? `this.src='${fallbackSrc}';` : `this.style.display='none';`}}">` 
             : `<div class="w-8 h-11 bg-slate-800 rounded"></div>`;
 
           item.innerHTML = `
@@ -2645,9 +2648,14 @@ function renderDeckCardsGrid() {
                  (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
     const imgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name) || `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}${isAA ? '_p1' : ''}.jpg`;
 
+    const baseCode = (card.card_number || '').trim().toUpperCase();
+    const fallbackSrc = baseCode.startsWith('P-')
+      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.jpg`
+      : (baseCode.includes('-') ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}.jpg` : '');
+
     el.innerHTML = `
       <div class="relative w-full aspect-[7/10] bg-slate-950 overflow-hidden flex items-center justify-center">
-        <img src="${imgUrl}" alt="${card.name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';">
+        <img src="${imgUrl}" alt="${card.name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null; ${fallbackSrc ? `this.src='${fallbackSrc}';` : ''}">
         <div class="absolute top-1.5 right-1.5 z-10">${getRarityBadgeHtml(card.rarity)}</div>
         <div class="absolute top-1.5 left-1.5 z-10">
           <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950/85 backdrop-blur text-purple-300 border border-purple-500/40 font-mono">${card.needed}x</span>
@@ -3026,7 +3034,7 @@ async function generateDeckCanvasGrid(cards, options = {}) {
       
       let finalSrc = src;
       if (!finalSrc || finalSrc.includes('placeholder')) {
-        finalSrc = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';
+        finalSrc = '/images/deck-export-bg.jpg';
       } else if (finalSrc.startsWith('http')) {
         finalSrc = `/api/proxy-image?url=${encodeURIComponent(finalSrc)}`;
       }

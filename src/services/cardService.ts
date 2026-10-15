@@ -137,18 +137,22 @@ export function resolveCardImageUrl(
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
 
-    // 4. Si el archivo es una promo, reprint o existe en el disco local, mantener la ruta local /images/cards/...
-    if (cleanName.includes('_pr') || cleanName.includes('_r') || cleanName.startsWith('P-')) {
-      return `/images/cards/${filename}`;
-    }
+    // 4. Si el archivo local existe en disco, servir /images/cards/...
     try {
-      const localDiskPath = path.join(__dirname, '../../public/images/cards', filename);
+      const localDiskPath = path.resolve(process.cwd(), 'public/images/cards', filename);
       if (fs.existsSync(localDiskPath)) {
         return `/images/cards/${filename}`;
       }
     } catch {}
 
-    // 5. One Piece card (preservando o deduciendo sufijo de variante _p1, _p2, _r1, etc.)
+    // 5. Si es promo P-xxx y no está en disco local, usar Supabase Storage
+    const baseCodeMatch = cleanName.match(/^([A-Z0-9]+-[A-Z0-9]+)/i);
+    const baseCode = baseCodeMatch ? baseCodeMatch[1].toUpperCase() : cleanName.split('_')[0].toUpperCase();
+    if (baseCode.startsWith('P-')) {
+      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.jpg`;
+    }
+
+    // 6. One Piece card (preservando o deduciendo sufijo de variante _p1, _p2, _r1, etc.)
     let variantSuffix = '';
     const suffixMatch = cleanName.match(/_([a-z0-9_-]+)$/i) || imageUrl.match(/_([a-z0-9_-]+)\.(jpg|jpeg|png|webp)$/i);
     if (suffixMatch) {
@@ -501,7 +505,7 @@ export async function getCardSets(): Promise<SetSummary[]> {
       }
     }
     if (!resolvedImage) {
-      resolvedImage = 'https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';
+      resolvedImage = null;
     }
     return {
       set_code,
