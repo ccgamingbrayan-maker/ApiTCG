@@ -137,7 +137,7 @@ cardsRouter.get('/saved', async (req: Request, res: Response) => {
   }
 });
 
-// ─── GET /api/cards/search?q=<name> ─────────────────────────────────────────
+// ─── GET /api/cards/search?q=<name>&limit=<n> ───────────────────────────────
 // Search cards already in DB
 cardsRouter.get('/search', async (req: Request, res: Response) => {
   const query = (req.query.q as string) ?? '';
@@ -146,7 +146,8 @@ cardsRouter.get('/search', async (req: Request, res: Response) => {
   }
 
   try {
-    const cards = await searchCards(query);
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 500;
+    const cards = await searchCards(query, isNaN(limit) ? 500 : limit);
     return res.json({ success: true, data: cards } as ApiResponse<typeof cards>);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -154,7 +155,7 @@ cardsRouter.get('/search', async (req: Request, res: Response) => {
   }
 });
 
-// ─── GET /api/cards/tcg-search?q=<name> ─────────────────────────────────────
+// ─── GET /api/cards/tcg-search?q=<name>&count=<n> ───────────────────────────
 // Search TCGPlayer directly (live scrape of search results)
 cardsRouter.get('/tcg-search', async (req: Request, res: Response) => {
   let query = ((req.query.q as string) ?? '').trim();
@@ -164,7 +165,8 @@ cardsRouter.get('/tcg-search', async (req: Request, res: Response) => {
   }
 
   try {
-    const results = await searchCardsByName(query);
+    const count = req.query.count ? parseInt(req.query.count as string, 10) : 60;
+    const results = await searchCardsByName(query, isNaN(count) ? 60 : count);
     return res.json({ success: true, data: results } as ApiResponse<typeof results>);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

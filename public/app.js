@@ -63,6 +63,11 @@ const getHighQualityImageUrl = (url, cardNumber, setCode, rarity, cardName) => {
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
 
+    // Promos / reimpresiones con archivos locales en el servidor (ej: P-085_pr1.jpg, P-113_pr1.jpg, etc.)
+    if (cleanName.includes('_pr') || cleanName.includes('_r') || cleanName.startsWith('P-') || (cardNumber && cardNumber.startsWith('P-'))) {
+      return `/images/cards/${filename}`;
+    }
+
     // 3. Extraer o deducir sufijo de variante (_p1, _p2, _r1, etc.)
     let variantSuffix = '';
     const suffixMatch = cleanName.match(/_([a-z0-9_-]+)$/i) || url.match(/_([a-z0-9_-]+)\.(jpg|jpeg|png|webp)$/i);
@@ -288,7 +293,7 @@ function renderResults(cards) {
   }
 
   // Limitar render inicial para máxima fluidez si son miles de cartas
-  const displayCards = cards.slice(0, 120);
+  const displayCards = cards.slice(0, 500);
 
   displayCards.forEach(card => {
     const el = document.createElement('div');
@@ -297,9 +302,12 @@ function renderResults(cards) {
     const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
                  (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
     const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
-    const fallbackSrc = isAA 
-      ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
-      : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
+    const isPromo = (card.card_number && card.card_number.startsWith('P-')) || (card.set_code === 'PROMO');
+    const fallbackSrc = isPromo
+      ? `/images/cards/${card.card_number || 'P-001'}.jpg`
+      : (isAA 
+          ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
+          : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`);
     const imgHtml = displayImg 
       ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i><span class="text-[10px]">Sin imagen</span></div>`;
@@ -373,7 +381,7 @@ searchBtn?.addEventListener('click', async () => {
   document.getElementById('loadingText').innerText = 'Buscando carta...';
   
   try {
-    const localRes = await fetch(`/api/cards/search?q=${encodeURIComponent(q)}`);
+    const localRes = await fetch(`/api/cards/search?q=${encodeURIComponent(q)}&limit=500`);
     const localData = await localRes.json();
     
     if (localData.success && localData.data && localData.data.length > 0) {
@@ -1414,9 +1422,12 @@ function renderFolderCards(cards) {
     const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
                  (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
     const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
-    const fallbackSrc = isAA 
-      ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
-      : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
+    const isPromo = (card.card_number && card.card_number.startsWith('P-')) || (card.set_code === 'PROMO');
+    const fallbackSrc = isPromo
+      ? `/images/cards/${card.card_number || 'P-001'}.jpg`
+      : (isAA 
+          ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
+          : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`);
     const imgHtml = displayImg 
       ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
@@ -1787,9 +1798,12 @@ function renderInventoryCards(items) {
       const isAA = (item.rarity && (item.rarity.includes('AA') || item.rarity.includes('PARALLEL'))) ||
                    (item.card_name && (item.card_name.includes('Alternate Art') || item.card_name.includes('Parallel')));
       const displayImg = getHighQualityImageUrl(item.image_url, item.card_number || displayNum, item.set_code, item.rarity, item.card_name);
+      const isPromo = (item.card_number && item.card_number.startsWith('P-')) || (displayNum && displayNum.startsWith('P-')) || (item.set_code === 'PROMO');
       const fallbackSrc = (item.set_code === 'DON' || item.rarity === 'DON' || displayNum === 'DON!!')
         ? 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png'
-        : `https://www.optcgapi.com/media/static/Card_Images/${displayNum}${isAA ? '_p1' : ''}.jpg`;
+        : (isPromo
+            ? `/images/cards/${displayNum || item.card_number || 'P-001'}.jpg`
+            : `https://www.optcgapi.com/media/static/Card_Images/${displayNum}${isAA ? '_p1' : ''}.jpg`);
       const imgHtml = displayImg
         ? `<img src="${displayImg}" alt="${item.card_name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='${fallbackSrc}';">`
         : `<div class="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
@@ -2062,7 +2076,7 @@ modalCardSearchInput?.addEventListener('input', (e) => {
 
   searchDebounceTimer = setTimeout(async () => {
     try {
-      const res = await fetch(`/api/cards/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/cards/search?q=${encodeURIComponent(q)}&limit=500`);
       const data = await res.json();
       let cards = (data.success && data.data) ? data.data : [];
 
@@ -2083,9 +2097,12 @@ modalCardSearchInput?.addEventListener('input', (e) => {
           const isAA = (card.rarity && (card.rarity.includes('AA') || card.rarity.includes('PARALLEL'))) ||
                        (card.name && (card.name.includes('Alternate Art') || card.name.includes('Parallel')));
           const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
-          const fallbackSrc = isAA 
-            ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
-            : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`;
+          const isPromo = (card.card_number && card.card_number.startsWith('P-')) || (card.set_code === 'PROMO');
+          const fallbackSrc = isPromo
+            ? `/images/cards/${card.card_number || 'P-001'}.jpg`
+            : (isAA 
+                ? `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}_p1.jpg`
+                : `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}.jpg`);
           const img = displayImg 
             ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="this.onerror=null; this.src='${fallbackSrc}';">` 
             : `<div class="w-8 h-11 bg-slate-800 rounded"></div>`;

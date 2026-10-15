@@ -137,7 +137,18 @@ export function resolveCardImageUrl(
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
 
-    // 4. One Piece card (preservando o deduciendo sufijo de variante _p1, _p2, _r1, etc.)
+    // 4. Si el archivo es una promo, reprint o existe en el disco local, mantener la ruta local /images/cards/...
+    if (cleanName.includes('_pr') || cleanName.includes('_r') || cleanName.startsWith('P-')) {
+      return `/images/cards/${filename}`;
+    }
+    try {
+      const localDiskPath = path.join(__dirname, '../../public/images/cards', filename);
+      if (fs.existsSync(localDiskPath)) {
+        return `/images/cards/${filename}`;
+      }
+    } catch {}
+
+    // 5. One Piece card (preservando o deduciendo sufijo de variante _p1, _p2, _r1, etc.)
     let variantSuffix = '';
     const suffixMatch = cleanName.match(/_([a-z0-9_-]+)$/i) || imageUrl.match(/_([a-z0-9_-]+)\.(jpg|jpeg|png|webp)$/i);
     if (suffixMatch) {
@@ -326,7 +337,7 @@ export async function getCardByTcgplayerId(tcgplayerId: number): Promise<Card | 
 
 // ─── SEARCH CARDS ───────────────────────────────────────────────────────────
 
-export async function searchCards(query: string): Promise<Card[]> {
+export async function searchCards(query: string, limit: number = 500): Promise<Card[]> {
   const cleanQ = query.trim();
   const words = cleanQ.split(/\s+/).filter(w => w.length > 0);
   if (words.length === 0) return [];
@@ -339,7 +350,7 @@ export async function searchCards(query: string): Promise<Card[]> {
       .from('cards')
       .select('*')
       .eq('tcgplayer_id', numericId)
-      .limit(10);
+      .limit(limit);
     if (!error && data && data.length > 0) {
       return (data as Card[]).map(c => ({
         ...c,
@@ -358,7 +369,7 @@ export async function searchCards(query: string): Promise<Card[]> {
       .or('set_code.eq.DON,rarity.eq.DON')
       .not('name', 'ilike', 'Missing Card%')
       .order('name', { ascending: true })
-      .limit(100);
+      .limit(limit);
 
     if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
     return ((data ?? []) as Card[]).map(c => ({
@@ -390,7 +401,7 @@ export async function searchCards(query: string): Promise<Card[]> {
 
     const { data, error } = await queryBuilder
       .order('name', { ascending: true })
-      .limit(50);
+      .limit(limit);
 
     if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
     return ((data ?? []) as Card[]).map(c => ({
@@ -421,7 +432,7 @@ export async function searchCards(query: string): Promise<Card[]> {
   const { data, error } = await reqQuery
     .order('rarity', { ascending: true })
     .order('card_number', { ascending: true })
-    .limit(30);
+    .limit(limit);
 
   if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
   return ((data ?? []) as Card[]).map(c => ({

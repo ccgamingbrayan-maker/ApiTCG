@@ -104,7 +104,7 @@ function parsePrice(priceStr: string | null | undefined): number | null {
 /**
  * Búsqueda directa HTTP contra la API interna de TCGPlayer (sin navegador, instantánea y 100% compatible con Vercel)
  */
-export async function searchTcgDirectApi(query: string): Promise<any[]> {
+export async function searchTcgDirectApi(query: string, size: number = 60): Promise<any[]> {
   try {
     const res = await fetch(`https://mp-search-api.tcgplayer.com/v1/search/request?q=${encodeURIComponent(query)}&isList=false`, {
       method: 'POST',
@@ -115,7 +115,7 @@ export async function searchTcgDirectApi(query: string): Promise<any[]> {
       body: JSON.stringify({
         algorithm: 'sales_synonym_v2',
         from: 0,
-        size: 15,
+        size: Math.min(size, 100),
         filters: { term: { productLineName: ['one-piece-card-game'] } }
       })
     });
@@ -623,7 +623,7 @@ export async function scrapeCardByUrl(tcgplayerUrl: string, context?: CardContex
  * Searches TCGPlayer for One Piece cards by name
  * Returns an array of product URLs found in the search results
  */
-export async function searchCardsByName(cardName: string): Promise<Array<{ name: string; url: string; price: string | null; image_url?: string | null }>> {
+export async function searchCardsByName(cardName: string, maxResults: number = 60): Promise<Array<{ name: string; url: string; price: string | null; image_url?: string | null }>> {
   let cleanName = cardName.replace(/_small(\.[a-z0-9]+)?/gi, '').replace(/_p\d+/gi, '').trim();
   if (cleanName.toLowerCase() === 'don' || cleanName.toLowerCase() === 'don!' || cleanName.toLowerCase() === 'don!!') {
     cleanName = 'DON!! Card';
@@ -634,10 +634,10 @@ export async function searchCardsByName(cardName: string): Promise<Array<{ name:
 
   // 1. Intentar primero con la API directa HTTP (instantáneo, sin navegador y 100% compatible con Vercel)
   try {
-    const directResults = await searchTcgDirectApi(cleanName);
+    const directResults = await searchTcgDirectApi(cleanName, maxResults);
     if (directResults && directResults.length > 0) {
       console.log(`[Scraper] ⚡ Búsqueda resuelta instantáneamente vía API directa (${directResults.length} resultados) para: "${cleanName}"`);
-      return directResults.map((i: any) => ({
+      return directResults.slice(0, maxResults).map((i: any) => ({
         name: i.productName,
         url: `https://www.tcgplayer.com/product/${i.productId}`,
         price: i.marketPrice ? `$${parseFloat(i.marketPrice).toFixed(2)}` : (i.lowestPrice ? `$${parseFloat(i.lowestPrice).toFixed(2)}` : null),
@@ -678,7 +678,7 @@ export async function searchCardsByName(cardName: string): Promise<Array<{ name:
     const count = await cards.count();
     console.log(`[Scraper] Encontradas ${count} cartas en los resultados.`);
 
-    for (let i = 0; i < Math.min(count, 10); i++) {
+    for (let i = 0; i < Math.min(count, maxResults); i++) {
       try {
         const card = cards.nth(i);
         const a = card.locator('a').first();
