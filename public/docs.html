@@ -509,8 +509,8 @@
         <!-- Quick Summary Metrics -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem;">
           <div>
-            <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Base URL</div>
-            <div id="baseUrlVal" class="font-mono current-origin" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">http://localhost:3001</div>
+            <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Base URL Oficial</div>
+            <div id="baseUrlVal" class="font-mono current-origin" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">https://www.basecc.cyou</div>
           </div>
           <div>
             <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Autenticación</div>
@@ -1087,7 +1087,8 @@
 {
   "api_name": "One Piece TCG API",
   "version": "1.0.0",
-  "base_url": "http://localhost:3000",
+  "base_url": "https://www.basecc.cyou",
+  "local_dev_url": "http://localhost:3001",
   "authentication": "none",
   "endpoints": [
     { "method": "GET", "path": "/api/cards/sets", "description": "Lista expansiones oficiales" },
@@ -1145,21 +1146,26 @@
       }
     }
 
-    // Dynamic Origin Detection: automatically adapt localhost / ports / production domains
-    const currentOrigin = window.location.origin;
+    // Dynamic Origin Detection: default to production domain https://www.basecc.cyou, adapt if on localhost
+    const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const currentOrigin = isLocalHost ? window.location.origin : 'https://www.basecc.cyou';
     const baseEl = document.getElementById('baseUrlVal');
-    if (baseEl) baseEl.textContent = currentOrigin;
+    if (baseEl) {
+      baseEl.innerHTML = isLocalHost
+        ? `${currentOrigin} <span style="font-size:0.7rem; color:#f59e0b; margin-left:0.3rem;">(Local)</span> <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">· Prod: https://www.basecc.cyou</span>`
+        : `https://www.basecc.cyou`;
+    }
 
     // Adapt all code blocks and previews to current origin
     document.querySelectorAll('.endpoint-card pre, .endpoint-card code').forEach(el => {
-      if (el.innerHTML.includes('http://localhost:3000')) {
-        el.innerHTML = el.innerHTML.replaceAll('http://localhost:3000', currentOrigin);
+      if (el.innerHTML.includes('http://localhost:3000') || el.innerHTML.includes('http://localhost:3001')) {
+        el.innerHTML = el.innerHTML.replaceAll(/http:\/\/localhost:300[01]/g, currentOrigin);
       }
     });
 
     // Copy cURL Helper (dynamically uses active current origin)
     function copyCurl(curlCmd, btn) {
-      const activeCmd = curlCmd.replaceAll('http://localhost:3000', currentOrigin);
+      const activeCmd = curlCmd.replaceAll(/http:\/\/localhost:300[01]/g, currentOrigin);
       navigator.clipboard.writeText(activeCmd).then(() => {
         showToast('Comando cURL copiado');
       });

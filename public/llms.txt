@@ -12,7 +12,8 @@ One Piece TCG API es un servicio backend en Node.js + Express + TypeScript con b
 ---
 
 ## Información de Conexión
-- **Base URL**: Determinado por el host donde se despliega (ej. `http://localhost:3001` en desarrollo local o el dominio de producción).
+- **Base URL Oficial (Producción)**: https://www.basecc.cyou
+- **Base URL Local (Desarrollo)**: http://localhost:3001
 - **Protocolo**: HTTP / JSON REST
 - **Autenticación**: No requiere API Key para llamadas generales (Endpoints públicos).
 - **Content-Type**: `application/json` en endpoints POST/PUT.
@@ -161,7 +162,7 @@ interface DeckAnalysisResult {
 - **Parámetros**: Ninguno.
 - **Ejemplo cURL**:
 ```bash
-curl -X GET http://localhost:3000/api/cards/sets
+curl -X GET https://www.basecc.cyou/api/cards/sets
 ```
 - **Respuesta Exitosa (200)**:
 ```json
@@ -185,7 +186,7 @@ curl -X GET http://localhost:3000/api/cards/sets
   - `rarity` (opcional, string): Rareza (ej. `SEC`, `SR`, `MANGA`, `SP`, `L-AA`).
 - **Ejemplo cURL**:
 ```bash
-curl -X GET "http://localhost:3000/api/cards/saved?set=OP01&rarity=SR"
+curl -X GET "https://www.basecc.cyou/api/cards/saved?set=OP01&rarity=SR"
 ```
 
 #### `GET /api/cards/search`
@@ -195,7 +196,7 @@ curl -X GET "http://localhost:3000/api/cards/saved?set=OP01&rarity=SR"
   - `limit` (opcional, number): Máximo de resultados (por defecto `500`).
 - **Ejemplo cURL**:
 ```bash
-curl -X GET "http://localhost:3000/api/cards/search?q=Zoro&limit=10"
+curl -X GET "https://www.basecc.cyou/api/cards/search?q=Zoro&limit=10"
 ```
 
 #### `GET /api/cards/tcg-search`
@@ -205,7 +206,7 @@ curl -X GET "http://localhost:3000/api/cards/search?q=Zoro&limit=10"
   - `count` (opcional, number): Cantidad máxima de resultados (por defecto `60`).
 - **Ejemplo cURL**:
 ```bash
-curl -X GET "http://localhost:3000/api/cards/tcg-search?q=Nami+OP01"
+curl -X GET "https://www.basecc.cyou/api/cards/tcg-search?q=Nami+OP01"
 ```
 
 #### `GET /api/cards/:id`
@@ -214,7 +215,7 @@ curl -X GET "http://localhost:3000/api/cards/tcg-search?q=Nami+OP01"
   - `id`: UUID de la carta en la base de datos local.
 - **Ejemplo cURL**:
 ```bash
-curl -X GET http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01
+curl -X GET https://www.basecc.cyou/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01
 ```
 
 #### `GET /api/cards/:id/prices`
@@ -223,7 +224,7 @@ curl -X GET http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01
   - `days` (opcional, number, defecto: `30`): Número de días hacia atrás.
 - **Ejemplo cURL**:
 ```bash
-curl -X GET "http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/prices?days=60"
+curl -X GET "https://www.basecc.cyou/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/prices?days=60"
 ```
 
 #### `GET /api/cards/:id/sales`
@@ -232,7 +233,7 @@ curl -X GET "http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f0
   - `days` (opcional, number, defecto: `30`): Número de días hacia atrás.
 - **Ejemplo cURL**:
 ```bash
-curl -X GET "http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/sales?days=15"
+curl -X GET "https://www.basecc.cyou/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/sales?days=15"
 ```
 
 #### `POST /api/cards/scrape`
@@ -253,7 +254,7 @@ curl -X GET "http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f0
 *Nota: Debe proveerse al menos uno de: `url`, `tcgplayer_id`, `card_id` o `card_number`.*
 - **Ejemplo cURL**:
 ```bash
-curl -X POST http://localhost:3000/api/cards/scrape \
+curl -X POST https://www.basecc.cyou/api/cards/scrape \
   -H "Content-Type: application/json" \
   -d '{"card_number": "OP01-025", "card_name": "Roronoa Zoro"}'
 ```
@@ -264,7 +265,7 @@ curl -X POST http://localhost:3000/api/cards/scrape \
   - `id`: UUID de la carta en la base de datos.
 - **Ejemplo cURL**:
 ```bash
-curl -X POST http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/refresh
+curl -X POST https://www.basecc.cyou/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/refresh
 ```
 
 ---
@@ -303,7 +304,7 @@ curl -X POST http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f0
 - **Descripción**: Obtiene la lista completa de cartas en el inventario personal con métricas globales: total de cartas, valor total invertido y cartas únicas.
 - **Ejemplo cURL**:
 ```bash
-curl -X GET http://localhost:3000/api/inventory
+curl -X GET https://www.basecc.cyou/api/inventory
 ```
 - **Respuesta Exitosa (200)**:
 ```json
@@ -335,7 +336,7 @@ curl -X GET http://localhost:3000/api/inventory
 - **Descripción**: Consulta todas las copias registradas de una carta específica en el inventario.
 - **Ejemplo cURL**:
 ```bash
-curl -X GET http://localhost:3000/api/inventory/card/3e09848f-ef87-4384-95a2-f8c5b6ff4f01
+curl -X GET https://www.basecc.cyou/api/inventory/card/3e09848f-ef87-4384-95a2-f8c5b6ff4f01
 ```
 
 #### `POST /api/inventory`
@@ -352,7 +353,7 @@ curl -X GET http://localhost:3000/api/inventory/card/3e09848f-ef87-4384-95a2-f8c
 ```
 - **Ejemplo cURL**:
 ```bash
-curl -X POST http://localhost:3000/api/inventory \
+curl -X POST https://www.basecc.cyou/api/inventory \
   -H "Content-Type: application/json" \
   -d '{"card_id": "3e09848f-ef87-4384-95a2-f8c5b6ff4f01", "quantity": 1, "purchase_price": 12.00, "condition": "Near Mint"}'
 ```
@@ -370,7 +371,7 @@ curl -X POST http://localhost:3000/api/inventory \
 ```
 - **Ejemplo cURL**:
 ```bash
-curl -X PUT http://localhost:3000/api/inventory/1 \
+curl -X PUT https://www.basecc.cyou/api/inventory/1 \
   -H "Content-Type: application/json" \
   -d '{"quantity": 3}'
 ```
@@ -379,7 +380,7 @@ curl -X PUT http://localhost:3000/api/inventory/1 \
 - **Descripción**: Elimina un registro del inventario.
 - **Ejemplo cURL**:
 ```bash
-curl -X DELETE http://localhost:3000/api/inventory/1
+curl -X DELETE https://www.basecc.cyou/api/inventory/1
 ```
 
 ---
@@ -401,7 +402,7 @@ curl -X DELETE http://localhost:3000/api/inventory/1
 ```
 - **Ejemplo cURL**:
 ```bash
-curl -X POST http://localhost:3000/api/decks/analyze \
+curl -X POST https://www.basecc.cyou/api/decks/analyze \
   -H "Content-Type: application/json" \
   -d '{"name": "Red Zoro", "text": "1xST01-001\n4xOP01-025"}'
 ```
@@ -410,7 +411,7 @@ curl -X POST http://localhost:3000/api/decks/analyze \
 - **Descripción**: Devuelve todos los proyectos de decks guardados localmente.
 - **Ejemplo cURL**:
 ```bash
-curl -X GET http://localhost:3000/api/decks
+curl -X GET https://www.basecc.cyou/api/decks
 ```
 
 #### `POST /api/decks`

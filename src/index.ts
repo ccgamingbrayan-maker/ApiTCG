@@ -80,6 +80,7 @@ app.get('/api/docs', (req: Request, res: Response) => {
     version: '1.0.0',
     description: 'API for One Piece TCG price tracking, market analysis, card OCR with Gemini AI, inventory management, and deck building.',
     base_url: baseUrl,
+    production_url: 'https://www.basecc.cyou',
     documentation_url: '/docs',
     llms_txt_url: '/llms.txt',
     endpoints: {
