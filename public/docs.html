@@ -510,7 +510,7 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem;">
           <div>
             <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Base URL</div>
-            <div class="font-mono" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">http://localhost:3000</div>
+            <div id="baseUrlVal" class="font-mono current-origin" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">http://localhost:3001</div>
           </div>
           <div>
             <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Autenticación</div>
@@ -1145,9 +1145,22 @@
       }
     }
 
-    // Copy cURL Helper
+    // Dynamic Origin Detection: automatically adapt localhost / ports / production domains
+    const currentOrigin = window.location.origin;
+    const baseEl = document.getElementById('baseUrlVal');
+    if (baseEl) baseEl.textContent = currentOrigin;
+
+    // Adapt all code blocks and previews to current origin
+    document.querySelectorAll('.endpoint-card pre, .endpoint-card code').forEach(el => {
+      if (el.innerHTML.includes('http://localhost:3000')) {
+        el.innerHTML = el.innerHTML.replaceAll('http://localhost:3000', currentOrigin);
+      }
+    });
+
+    // Copy cURL Helper (dynamically uses active current origin)
     function copyCurl(curlCmd, btn) {
-      navigator.clipboard.writeText(curlCmd).then(() => {
+      const activeCmd = curlCmd.replaceAll('http://localhost:3000', currentOrigin);
+      navigator.clipboard.writeText(activeCmd).then(() => {
         showToast('Comando cURL copiado');
       });
     }

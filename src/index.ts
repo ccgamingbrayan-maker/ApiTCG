@@ -73,12 +73,13 @@ app.get('/llms.txt', (_req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, '../public/llms.txt'));
 });
 
-app.get('/api/docs', (_req: Request, res: Response) => {
+app.get('/api/docs', (req: Request, res: Response) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
   res.json({
     name: 'One Piece TCG API',
     version: '1.0.0',
     description: 'API for One Piece TCG price tracking, market analysis, card OCR with Gemini AI, inventory management, and deck building.',
-    base_url: 'http://localhost:3000',
+    base_url: baseUrl,
     documentation_url: '/docs',
     llms_txt_url: '/llms.txt',
     endpoints: {

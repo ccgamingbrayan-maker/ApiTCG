@@ -12,7 +12,7 @@ One Piece TCG API es un servicio backend en Node.js + Express + TypeScript con b
 ---
 
 ## Información de Conexión
-- **Base URL Local**: `http://localhost:3000`
+- **Base URL**: Determinado por el host donde se despliega (ej. `http://localhost:3001` en desarrollo local o el dominio de producción).
 - **Protocolo**: HTTP / JSON REST
 - **Autenticación**: No requiere API Key para llamadas generales (Endpoints públicos).
 - **Content-Type**: `application/json` en endpoints POST/PUT.
