@@ -713,7 +713,7 @@
                 <span class="method-pill method-get">GET</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/sets</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/cards/sets', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET https://www.basecc.cyou/api/cards/sets', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -727,7 +727,7 @@
       "set_code": "OP01",
       "set_name": "Romance Dawn",
       "count": 121,
-      "sample_image": "https://www.optcgapi.com/media/static/Card_Images/OP01-001.jpg"
+      "sample_image": "https://www.basecc.cyou/images/cards/OP01-001.jpg"
     }
   ]
 }</code></pre>
@@ -741,7 +741,7 @@
                 <span class="method-pill method-get">GET</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/saved</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;http://localhost:3000/api/cards/saved?set=OP01&amp;rarity=SR&quot;', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;https://www.basecc.cyou/api/cards/saved?set=OP01&amp;rarity=SR&quot;', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -762,7 +762,7 @@
                 <span class="method-pill method-get">GET</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/search</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;http://localhost:3000/api/cards/search?q=Luffy&amp;limit=10&quot;', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;https://www.basecc.cyou/api/cards/search?q=Luffy&amp;limit=10&quot;', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -783,7 +783,7 @@
                 <span class="method-pill method-get">GET</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/tcg-search</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;http://localhost:3000/api/cards/tcg-search?q=Nami+OP01&quot;', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;https://www.basecc.cyou/api/cards/tcg-search?q=Nami+OP01&quot;', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -797,7 +797,7 @@
                 <span class="method-pill method-get">GET</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/:id</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/cards/CARD_UUID', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET https://www.basecc.cyou/api/cards/CARD_UUID', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -811,7 +811,7 @@
                 <span class="method-pill method-post">POST</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/scrape</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/cards/scrape -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;card_number&quot;: &quot;OP01-025&quot;, &quot;card_name&quot;: &quot;Roronoa Zoro&quot;}&apos;', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST https://www.basecc.cyou/api/cards/scrape -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;card_number&quot;: &quot;OP01-025&quot;, &quot;card_name&quot;: &quot;Roronoa Zoro&quot;}&apos;', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -834,7 +834,7 @@
                 <span class="method-pill method-post">POST</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/:id/refresh</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/cards/CARD_UUID/refresh', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST https://www.basecc.cyou/api/cards/CARD_UUID/refresh', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -859,7 +859,7 @@
               <span class="method-pill method-post">POST</span>
               <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/ai/identify</span>
             </div>
-            <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/ai/identify -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;imageBase64&quot;: &quot;data:image/jpeg;base64,...&quot;}&apos;', this)">
+            <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST https://www.basecc.cyou/api/ai/identify -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;imageBase64&quot;: &quot;data:image/jpeg;base64,...&quot;}&apos;', this)">
               <i class="fa-regular fa-copy"></i> cURL
             </button>
           </div>
@@ -883,7 +883,7 @@
     "name": "Roronoa Zoro",
     "rarity": "SR",
     "set_code": "OP01",
-    "image_url": "https://www.optcgapi.com/media/static/Card_Images/OP01-025.jpg"
+    "image_url": "https://www.basecc.cyou/images/cards/OP01-025.jpg"
   }
 }</code></pre>
           </div>
@@ -907,7 +907,7 @@
                 <span class="method-pill method-get">GET</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/inventory', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET https://www.basecc.cyou/api/inventory', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -921,7 +921,7 @@
                 <span class="method-pill method-post">POST</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/inventory -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;card_id&quot;: &quot;UUID&quot;, &quot;quantity&quot;: 2, &quot;purchase_price&quot;: 15.0}&apos;', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST https://www.basecc.cyou/api/inventory -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;card_id&quot;: &quot;UUID&quot;, &quot;quantity&quot;: 2, &quot;purchase_price&quot;: 15.0}&apos;', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -935,7 +935,7 @@
                 <span class="method-pill method-put">PUT</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory/:id</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X PUT http://localhost:3000/api/inventory/1 -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;quantity&quot;: 3}&apos;', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X PUT https://www.basecc.cyou/api/inventory/1 -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;quantity&quot;: 3}&apos;', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -949,7 +949,7 @@
                 <span class="method-pill method-delete">DELETE</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory/:id</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X DELETE http://localhost:3000/api/inventory/1', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X DELETE https://www.basecc.cyou/api/inventory/1', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -975,7 +975,7 @@
                 <span class="method-pill method-post">POST</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/decks/analyze</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/decks/analyze -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;name&quot;: &quot;Red Zoro&quot;, &quot;text&quot;: &quot;1xST01-001\n4xOP01-025&quot;}&apos;', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST https://www.basecc.cyou/api/decks/analyze -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;name&quot;: &quot;Red Zoro&quot;, &quot;text&quot;: &quot;1xST01-001\n4xOP01-025&quot;}&apos;', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -996,7 +996,7 @@
                 <span class="method-pill method-get">GET</span>
                 <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/decks</span>
               </div>
-              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/decks', this)">
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET https://www.basecc.cyou/api/decks', this)">
                 <i class="fa-regular fa-copy"></i> cURL
               </button>
             </div>
@@ -1088,7 +1088,6 @@
   "api_name": "One Piece TCG API",
   "version": "1.0.0",
   "base_url": "https://www.basecc.cyou",
-  "local_dev_url": "http://localhost:3001",
   "authentication": "none",
   "endpoints": [
     { "method": "GET", "path": "/api/cards/sets", "description": "Lista expansiones oficiales" },
@@ -1158,7 +1157,7 @@
 
     // Adapt all code blocks and previews to current origin
     document.querySelectorAll('.endpoint-card pre, .endpoint-card code').forEach(el => {
-      if (el.innerHTML.includes('http://localhost:3000') || el.innerHTML.includes('http://localhost:3001')) {
+      if (el.innerHTML.includes('https://www.basecc.cyou') || el.innerHTML.includes('https://www.basecc.cyou')) {
         el.innerHTML = el.innerHTML.replaceAll(/http:\/\/localhost:300[01]/g, currentOrigin);
       }
     });

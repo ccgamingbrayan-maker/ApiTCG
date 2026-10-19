@@ -12,8 +12,7 @@ One Piece TCG API es un servicio backend en Node.js + Express + TypeScript con b
 ---
 
 ## Información de Conexión
-- **Base URL Oficial (Producción)**: https://www.basecc.cyou
-- **Base URL Local (Desarrollo)**: http://localhost:3001
+- **Base URL**: `https://www.basecc.cyou`
 - **Protocolo**: HTTP / JSON REST
 - **Autenticación**: No requiere API Key para llamadas generales (Endpoints públicos).
 - **Content-Type**: `application/json` en endpoints POST/PUT.
@@ -173,7 +172,7 @@ curl -X GET https://www.basecc.cyou/api/cards/sets
       "set_code": "OP01",
       "set_name": "Romance Dawn",
       "count": 121,
-      "sample_image": "https://www.optcgapi.com/media/static/Card_Images/OP01-001.jpg"
+      "sample_image": "https://www.basecc.cyou/images/cards/OP01-001.jpg"
     }
   ]
 }
@@ -290,7 +289,7 @@ curl -X POST https://www.basecc.cyou/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4
     "name": "Roronoa Zoro",
     "rarity": "SR",
     "set_code": "OP01",
-    "image_url": "https://www.optcgapi.com/media/static/Card_Images/OP01-025.jpg"
+    "image_url": "https://www.basecc.cyou/images/cards/OP01-025.jpg"
   }
 }
 ```
