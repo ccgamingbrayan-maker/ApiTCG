@@ -6,6 +6,49 @@ const fmtCurrency = (num) => {
   return '$' + parseFloat(num).toFixed(2);
 };
 
+// ─── MANEJADOR INTELIGENTE DE ERRORES DE IMAGEN ──────────────────────────
+// Reintenta con extensiones alternativas (.png <-> .jpg), URLs base y CDN público antes de mostrar placeholder
+function handleCardImageError(imgEl, cardCode, isAA) {
+  if (!imgEl) return;
+  const step = parseInt(imgEl.dataset.errorStep || '0', 10);
+  const code = (cardCode || '').toUpperCase().trim();
+  const isPromo = code.startsWith('P-');
+
+  if (step === 0) {
+    imgEl.dataset.errorStep = '1';
+    if (isPromo) {
+      if (imgEl.src.includes('.jpg')) {
+        imgEl.src = imgEl.src.replace(/\.jpg(\?.*)?$/i, '.png');
+        return;
+      } else if (imgEl.src.includes('.png')) {
+        imgEl.src = imgEl.src.replace(/\.png(\?.*)?$/i, '.jpg');
+        return;
+      }
+      const numMatch = code.match(/^P-(\d+)/i);
+      const ext = (numMatch && parseInt(numMatch[1], 10) <= 80) ? 'png' : 'jpg';
+      imgEl.src = `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${code}.${ext}`;
+      return;
+    } else if (code.includes('-')) {
+      const suffix = isAA ? '_p1' : '';
+      imgEl.src = `https://www.optcgapi.com/media/static/Card_Images/${code}${suffix}.jpg`;
+      return;
+    }
+  } else if (step === 1) {
+    imgEl.dataset.errorStep = '2';
+    if (isPromo) {
+      const baseCode = code.split('_')[0];
+      const tryExt = imgEl.src.includes('.png') ? 'jpg' : 'png';
+      imgEl.src = `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.${tryExt}`;
+      return;
+    }
+  }
+
+  // Placeholder limpio "Sin imagen" si todos los reintentos fallaron
+  if (imgEl.parentElement) {
+    imgEl.parentElement.innerHTML = '<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i><span class="text-[10px]">Sin imagen</span></div>';
+  }
+}
+
 // Garantiza URLs en alta calidad evitando miniaturas pixeladas y resolviendo rutas locales a CDN público
 const getHighQualityImageUrl = (url, cardNumber, setCode, rarity, cardName) => {
   const rUpper = (rarity || '').toUpperCase();
@@ -19,6 +62,11 @@ const getHighQualityImageUrl = (url, cardNumber, setCode, rarity, cardName) => {
   if (!url) {
     if (cardNumber && /^don_(\d+)/i.test(cardNumber)) {
       return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${cardNumber.toLowerCase()}.jpg`;
+    }
+    if (cardNumber && cardNumber.toUpperCase().startsWith('P-')) {
+      const numMatch = cardNumber.match(/^P-(\d+)/i);
+      const ext = (numMatch && parseInt(numMatch[1], 10) <= 80) ? 'png' : 'jpg';
+      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${cardNumber.toUpperCase()}.${ext}`;
     }
     if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
       const suffix = isAA ? '_p1' : '';
@@ -63,9 +111,9 @@ const getHighQualityImageUrl = (url, cardNumber, setCode, rarity, cardName) => {
       return 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png';
     }
 
-    // Promos / reimpresiones con archivos locales en el servidor (ej: P-085_pr1.jpg, P-113_pr1.jpg, etc.)
+    // Promos / reimpresiones alojadas en Supabase Storage CDN público
     if (cleanName.includes('_pr') || cleanName.includes('_r') || cleanName.startsWith('P-') || (cardNumber && cardNumber.startsWith('P-'))) {
-      return `/images/cards/${filename}`;
+      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${filename}`;
     }
 
     // 3. Extraer o deducir sufijo de variante (_p1, _p2, _r1, etc.)
@@ -304,13 +352,15 @@ function renderResults(cards) {
     const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
     const baseCode = (card.card_number || '').trim().toUpperCase();
     const isPromo = baseCode.startsWith('P-') || (card.set_code === 'PROMO');
+    const pNum = baseCode.match(/^P-(\d+)/i);
+    const promoExt = (pNum && parseInt(pNum[1], 10) <= 80) ? 'png' : 'jpg';
     const fallbackSrc = isPromo
-      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.jpg`
+      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.${promoExt}`
       : (baseCode.includes('-')
           ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}${isAA ? '_p1' : ''}.jpg`
           : '');
     const imgHtml = displayImg 
-      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="if(this.dataset.fallbackDone){this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i><span class=\\'text-[10px]\\'>Sin imagen</span></div>';}else{this.dataset.fallbackDone='1';${fallbackSrc ? `this.src='${fallbackSrc}';` : `this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i><span class=\\'text-[10px]\\'>Sin imagen</span></div>';`}}">` 
+      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="handleCardImageError(this, '${baseCode}', ${isAA})">` 
       : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i><span class="text-[10px]">Sin imagen</span></div>`;
 
     const rarityBadge = card.rarity ? getRarityBadgeHtml(card.rarity) : '';
@@ -1425,14 +1475,16 @@ function renderFolderCards(cards) {
     const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
     const baseCode = (card.card_number || '').trim().toUpperCase();
     const isPromo = baseCode.startsWith('P-') || (card.set_code === 'PROMO');
+    const pNum = baseCode.match(/^P-(\d+)/i);
+    const promoExt = (pNum && parseInt(pNum[1], 10) <= 80) ? 'png' : 'jpg';
     const fallbackSrc = isPromo
-      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.jpg`
+      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.${promoExt}`
       : (baseCode.includes('-')
           ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}${isAA ? '_p1' : ''}.jpg`
           : '');
     const imgHtml = displayImg 
-      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="if(this.dataset.fallbackDone){this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i></div>';}else{this.dataset.fallbackDone='1';${fallbackSrc ? `this.src='${fallbackSrc}';` : `this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950\\'><i class=\\'fa-regular fa-image text-2xl\\'></i></div>';`}}">` 
-      : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
+      ? `<img src="${displayImg}" alt="${card.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" onerror="handleCardImageError(this, '${baseCode}', ${isAA})">` 
+      : `<div class="w-full h-full flex flex-col items-center justify-center text-slate-600 gap-1 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i><span class="text-[10px]">Sin imagen</span></div>`;
       
     el.innerHTML = `
       <div class="relative w-full aspect-[7/10] bg-slate-950 overflow-hidden flex items-center justify-center">
@@ -1801,13 +1853,16 @@ function renderInventoryCards(items) {
                    (item.card_name && (item.card_name.includes('Alternate Art') || item.card_name.includes('Parallel')));
       const displayImg = getHighQualityImageUrl(item.image_url, item.card_number || displayNum, item.set_code, item.rarity, item.card_name);
       const isPromo = (item.card_number && item.card_number.startsWith('P-')) || (displayNum && displayNum.startsWith('P-')) || (item.set_code === 'PROMO');
+      const pCode = (displayNum || item.card_number || '').trim().toUpperCase();
+      const pNum = pCode.match(/^P-(\d+)/i);
+      const promoExt = (pNum && parseInt(pNum[1], 10) <= 80) ? 'png' : 'jpg';
       const fallbackSrc = (item.set_code === 'DON' || item.rarity === 'DON' || displayNum === 'DON!!')
         ? 'https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/Don.png'
         : (isPromo
-            ? `/images/cards/${displayNum || item.card_number || 'P-001'}.jpg`
+            ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${pCode || 'P-001'}.${promoExt}`
             : `https://www.optcgapi.com/media/static/Card_Images/${displayNum}${isAA ? '_p1' : ''}.jpg`);
       const imgHtml = displayImg
-        ? `<img src="${displayImg}" alt="${item.card_name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='${fallbackSrc}';">`
+        ? `<img src="${displayImg}" alt="${item.card_name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="handleCardImageError(this, '${pCode}', ${isAA})">`
         : `<div class="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950"><i class="fa-regular fa-image text-2xl"></i></div>`;
       
       cardEl.innerHTML = `
@@ -2101,13 +2156,15 @@ modalCardSearchInput?.addEventListener('input', (e) => {
           const displayImg = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name);
           const baseCode = (card.card_number || '').trim().toUpperCase();
           const isPromo = baseCode.startsWith('P-') || (card.set_code === 'PROMO');
+          const pNum = baseCode.match(/^P-(\d+)/i);
+          const promoExt = (pNum && parseInt(pNum[1], 10) <= 80) ? 'png' : 'jpg';
           const fallbackSrc = isPromo
-            ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.jpg`
+            ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode || 'P-001'}.${promoExt}`
             : (baseCode.includes('-')
                 ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}${isAA ? '_p1' : ''}.jpg`
                 : '');
           const img = displayImg 
-            ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="if(this.dataset.fallbackDone){this.style.display='none';}else{this.dataset.fallbackDone='1';${fallbackSrc ? `this.src='${fallbackSrc}';` : `this.style.display='none';`}}">` 
+            ? `<img src="${displayImg}" class="w-8 h-11 object-cover rounded border border-slate-700" onerror="handleCardImageError(this, '${baseCode}', ${isAA})">` 
             : `<div class="w-8 h-11 bg-slate-800 rounded"></div>`;
 
           item.innerHTML = `
@@ -2435,13 +2492,13 @@ async function loadAndRenderSavedDecks() {
       const card = document.createElement('div');
       card.className = 'p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-purple-500/50 flex flex-col justify-between gap-3 transition shadow-md';
       
-      const leaderImg = getHighQualityImageUrl(deck.leader?.image_url, deck.leader?.card_number) || 'https://www.optcgapi.com/media/static/Card_Images/' + (deck.leader?.card_number || 'OP01-013') + '.jpg';
+      const leaderImg = getHighQualityImageUrl(deck.leader?.image_url, deck.leader?.card_number) || 'https://www.optcgapi.com/media/static/Card_Images/' + (deck.leader?.card_number || 'OP01-001') + '.jpg';
       const pct = deck.completion_percent || 0;
       const createdStr = deck.created_at ? new Date(deck.created_at).toLocaleDateString() : '';
 
       card.innerHTML = `
         <div class="flex items-start gap-3">
-          <img src="${leaderImg}" class="w-12 h-16 object-cover rounded-lg border border-purple-500/30 bg-slate-900 flex-shrink-0" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/OP01-013.jpg';">
+          <img src="${leaderImg}" class="w-12 h-16 object-cover rounded-lg border border-purple-500/30 bg-slate-900 flex-shrink-0" onerror="this.onerror=null; this.src='https://www.optcgapi.com/media/static/Card_Images/OP01-001.jpg';">
           <div class="min-w-0 flex-1">
             <h4 class="text-xs font-bold text-white truncate" title="${deck.name}">${deck.name}</h4>
             <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
@@ -2649,13 +2706,16 @@ function renderDeckCardsGrid() {
     const imgUrl = getHighQualityImageUrl(card.image_url, card.card_number, card.set_code, card.rarity, card.name) || `https://www.optcgapi.com/media/static/Card_Images/${card.card_number}${isAA ? '_p1' : ''}.jpg`;
 
     const baseCode = (card.card_number || '').trim().toUpperCase();
-    const fallbackSrc = baseCode.startsWith('P-')
-      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.jpg`
+    const isPromo = baseCode.startsWith('P-');
+    const pNum = baseCode.match(/^P-(\d+)/i);
+    const promoExt = (pNum && parseInt(pNum[1], 10) <= 80) ? 'png' : 'jpg';
+    const fallbackSrc = isPromo
+      ? `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.${promoExt}`
       : (baseCode.includes('-') ? `https://www.optcgapi.com/media/static/Card_Images/${baseCode}.jpg` : '');
 
     el.innerHTML = `
       <div class="relative w-full aspect-[7/10] bg-slate-950 overflow-hidden flex items-center justify-center">
-        <img src="${imgUrl}" alt="${card.name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null; ${fallbackSrc ? `this.src='${fallbackSrc}';` : ''}">
+        <img src="${imgUrl}" alt="${card.name}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" onerror="handleCardImageError(this, '${baseCode}', ${isAA})">
         <div class="absolute top-1.5 right-1.5 z-10">${getRarityBadgeHtml(card.rarity)}</div>
         <div class="absolute top-1.5 left-1.5 z-10">
           <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950/85 backdrop-blur text-purple-300 border border-purple-500/40 font-mono">${card.needed}x</span>

@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One Piece TCG API — Documentación para Desarrolladores & Agentes de IA</title>
+  <meta name="description" content="Especificación técnica oficial y documentación comprensible para Agentes de IA (LLMs) y desarrolladores de la API de One Piece TCG.">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+
+  <!-- Google Fonts: Inter, Outfit, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-dark: #030712;
+      --card-bg: rgba(15, 23, 42, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-border-hover: rgba(56, 189, 248, 0.3);
+      --primary: #0284c7;
+      --primary-glow: #38bdf8;
+      --accent-purple: #818cf8;
+      --method-get: #10b981;
+      --method-post: #38bdf8;
+      --method-put: #f59e0b;
+      --method-delete: #f43f5e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: #f1f5f9;
+      font-family: 'Inter', -apple-system, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1, h2, h3, h4, .brand-title {
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #030712;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Ambient background gradient glow */
+    .ambient-glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(140px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+    }
+    .glow-1 {
+      top: -100px;
+      left: 10%;
+      background: radial-gradient(circle, #0284c7 0%, transparent 70%);
+    }
+    .glow-2 {
+      top: 30%;
+      right: 5%;
+      background: radial-gradient(circle, #6366f1 0%, transparent 70%);
+    }
+
+    /* Layout structure */
+    .docs-container {
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem 1rem;
+      display: flex;
+      gap: 2rem;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Sticky Sidebar */
+    .sidebar {
+      width: 290px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 5rem;
+      height: calc(100vh - 6.5rem);
+      overflow-y: auto;
+      padding-right: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+      padding-bottom: 5rem;
+    }
+
+    /* Header Nav */
+    header.docs-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0.85rem 1.5rem;
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    /* Badges & Buttons */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .badge-ai {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(129, 140, 248, 0.2));
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.15);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.6rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #1d4ed8);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+    }
+
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.8);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+    }
+    .btn-secondary:hover {
+      background: rgba(30, 41, 59, 0.8);
+      border-color: rgba(56, 189, 248, 0.3);
+      color: white;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .card:hover {
+      border-color: var(--card-border-hover);
+    }
+
+    /* Endpoint Card */
+    .endpoint-card {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 1rem;
+      overflow: hidden;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.25rem;
+    }
+    .endpoint-card:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .method-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.55rem;
+      border-radius: 0.375rem;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .method-get { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .method-post { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .method-put { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .method-delete { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+
+    /* Code blocks */
+    .code-block {
+      background: #020617;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+      position: relative;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #94a3b8;
+      padding: 0.3rem 0.6rem;
+      border-radius: 0.4rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover {
+      color: #38bdf8;
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    /* Nav Links in Sidebar */
+    .nav-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.4rem 0.65rem;
+      border-radius: 0.5rem;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 0.82rem;
+      transition: all 0.15s;
+    }
+    .sidebar-link:hover, .sidebar-link.active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      color: #f8fafc;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.75rem;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.25);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #toast.show {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    /* Modal for raw llms.txt */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 99;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .modal-backdrop.show {
+      display: flex;
+    }
+    .modal-card {
+      background: #0b1329;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 900px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Table styles */
+    .schema-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+    .schema-table th {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      background: rgba(15, 23, 42, 0.8);
+      color: #94a3b8;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+    .schema-table td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+    }
+    .schema-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Glow effects -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- ─── HEADER ──────────────────────────────────────────────────────────── -->
+  <header class="docs-header">
+    <div class="header-inner">
+      <div style="display: flex; align-items: center; gap: 0.85rem;">
+        <a href="/" style="text-decoration: none; display: flex; align-items: center; gap: 0.6rem;">
+          <div style="width: 36px; height: 36px; border-radius: 0.5rem; background: linear-gradient(135deg, #0284c7, #4f46e5); display: flex; align-items: center; justify-content: center; color: white;">
+            <i class="fa-solid fa-skull-crossbones"></i>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+              <span class="brand-title" style="font-weight: 800; font-size: 1.05rem; color: #ffffff;">OP-TCG</span>
+              <span class="badge badge-ai"><i class="fa-solid fa-microchip"></i> AI-Docs</span>
+            </div>
+            <p style="font-size: 0.68rem; color: #94a3b8; line-height: 1;">API Documentation · LLM Optimized</p>
+          </div>
+        </a>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div style="display: flex; align-items: center; gap: 0.6rem;">
+        <button id="btnCopyPrompt" class="btn btn-primary" title="Copia toda la especificación técnica en Markdown para pegarla directamente a ChatGPT, Claude, Gemini o Cursor">
+          <i class="fa-solid fa-bolt"></i>
+          <span>Copiar Contexto para IA</span>
+        </button>
+
+        <a href="/llms.txt" target="_blank" class="btn btn-secondary" title="Ver archivo llms.txt estándar">
+          <i class="fa-regular fa-file-lines text-sky-400"></i>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;">llms.txt</span>
+        </a>
+
+        <a href="/" class="btn btn-secondary" title="Ir al Catálogo de Cartas">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>App</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─── MAIN LAYOUT ─────────────────────────────────────────────────────── -->
+  <div class="docs-container">
+
+    <!-- ─── SIDEBAR NAVIGATION ────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <!-- Search filter inside docs -->
+      <div>
+        <div style="position: relative; display: flex; align-items: center; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; padding: 0.4rem 0.65rem;">
+          <i class="fa-solid fa-magnifying-glass" style="font-size: 0.75rem; color: #64748b; margin-right: 0.5rem;"></i>
+          <input type="text" id="filterInput" placeholder="Filtrar endpoints (ej. scrape, deck, GET)..." style="background: transparent; border: none; outline: none; font-size: 0.78rem; color: #f8fafc; width: 100%;">
+        </div>
+      </div>
+
+      <!-- Nav sections -->
+      <nav style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div>
+          <div class="nav-section-title"><i class="fa-solid fa-compass"></i> Introducción</div>
+          <a href="#overview" class="sidebar-link active"><i class="fa-solid fa-circle-info"></i> Resumen & Base URL</a>
+          <a href="#ai-friendly" class="sidebar-link"><i class="fa-solid fa-robot"></i> ¿Por qué es AI-Friendly?</a>
+          <a href="#schemas" class="sidebar-link"><i class="fa-solid fa-cubes"></i> Modelos de Datos (Schemas)</a>
+        </div>
+
+        <div>
+          <div class="nav-section-title"><i class="fa-solid fa-server"></i> Endpoints</div>
+          <a href="#sec-cards" class="sidebar-link"><i class="fa-solid fa-cards-blank"></i> Cartas & Scraper</a>
+          <a href="#sec-ai" class="sidebar-link"><i class="fa-solid fa-eye"></i> Visión Artificial OCR</a>
+          <a href="#sec-inventory" class="sidebar-link"><i class="fa-solid fa-box-archive"></i> Inventario Personal</a>
+          <a href="#sec-decks" class="sidebar-link"><i class="fa-solid fa-layer-group"></i> Analizador de Decks</a>
+        </div>
+
+        <div>
+          <div class="nav-section-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Recetas para IA</div>
+          <a href="#workflows" class="sidebar-link"><i class="fa-solid fa-diagram-project"></i> Flujos Autónomos</a>
+        </div>
+      </nav>
+
+      <!-- Machine Specification Quick Card -->
+      <div class="card" style="padding: 1rem; border-color: rgba(56, 189, 248, 0.2); background: rgba(8, 14, 29, 0.7);">
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <i class="fa-solid fa-shield-halved text-sky-400" style="font-size: 0.85rem;"></i>
+          <span style="font-size: 0.75rem; font-weight: 700; color: #e2e8f0;">Especificación JSON</span>
+        </div>
+        <p style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 0.75rem;">Consumo directo vía API para agentes autónomos y scripts.</p>
+        <button id="btnViewRawJson" class="btn btn-secondary" style="width: 100%; justify-content: center; font-size: 0.75rem; padding: 0.35rem 0.5rem;">
+          <i class="fa-solid fa-code"></i> Ver JSON Schema
+        </button>
+      </div>
+    </aside>
+
+    <!-- ─── MAIN CONTENT ──────────────────────────────────────────────────── -->
+    <main class="main-content">
+
+      <!-- Hero Banner -->
+      <section class="card" style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(14, 30, 60, 0.85) 100%); border-color: rgba(56, 189, 248, 0.25); position: relative; overflow: hidden;">
+        <div style="position: absolute; right: -20px; top: -20px; font-size: 9rem; opacity: 0.04; pointer-events: none; color: #38bdf8;">
+          <i class="fa-solid fa-network-wired"></i>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem;">
+          <span class="badge badge-ai"><i class="fa-solid fa-sparkles"></i> LLM & Agent Friendly</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">v1.0.0 Online</span>
+        </div>
+
+        <h1 style="font-size: 2rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem;">
+          One Piece TCG API Specification
+        </h1>
+        <p style="font-size: 0.95rem; color: #94a3b8; max-width: 750px; margin-bottom: 1.25rem;">
+          Documentación técnica unificada y de alta densidad de información. Diseñada para que <strong>Modelos de Lenguaje (ChatGPT, Claude, Gemini, Antigravity)</strong> y desarrolladores puedan comprender los endpoints, parámetros y esquemas sin fricción ni tokens innecesarios.
+        </p>
+
+        <!-- Quick Summary Metrics -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem;">
+          <div>
+            <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Base URL</div>
+            <div class="font-mono" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">http://localhost:3000</div>
+          </div>
+          <div>
+            <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Autenticación</div>
+            <div style="font-size: 0.85rem; color: #10b981; font-weight: 600;">Pública / No Requerida</div>
+          </div>
+          <div>
+            <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Formato</div>
+            <div class="font-mono" style="font-size: 0.85rem; color: #cbd5e1;">JSON (REST) · UTF-8</div>
+          </div>
+          <div>
+            <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Estándar IA</div>
+            <div style="font-size: 0.85rem; color: #818cf8; font-weight: 600;"><a href="/llms.txt" style="color: #818cf8; text-decoration: underline;">llms.txt Compliant</a></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SECCIÓN: INTRODUCCIÓN & POR QUÉ ES AI-FRIENDLY ─────────────────── -->
+      <section id="ai-friendly" class="card">
+        <h2 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-brain" style="color: #38bdf8;"></i> ¿Por qué esta documentación es óptima para IAs?
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+          <div style="background: rgba(2, 6, 23, 0.6); padding: 1rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-weight: 600; color: #38bdf8; font-size: 0.85rem; margin-bottom: 0.35rem;"><i class="fa-solid fa-compress"></i> Alta Densidad de Tokens</div>
+            <p style="font-size: 0.8rem; color: #94a3b8;">Sin texto de relleno ni párrafos redundantes. Cada sección entrega los tipos, parámetros, formatos de error y ejemplos directamente comprensibles por un contexto de atención de LLM.</p>
+          </div>
+          <div style="background: rgba(2, 6, 23, 0.6); padding: 1rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-weight: 600; color: #818cf8; font-size: 0.85rem; margin-bottom: 0.35rem;"><i class="fa-solid fa-file-lines"></i> Estándar llms.txt Disponible</div>
+            <p style="font-size: 0.8rem; color: #94a3b8;">La ruta raíz <code class="font-mono" style="color: #cbd5e1;">/llms.txt</code> expone el contenido en formato texto plano puro para que crawlers de IA (e.g. GPTBot, ClaudeBot, Antigravity) lean la API en una sola petición.</p>
+          </div>
+          <div style="background: rgba(2, 6, 23, 0.6); padding: 1rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-weight: 600; color: #34d399; font-size: 0.85rem; margin-bottom: 0.35rem;"><i class="fa-solid fa-code"></i> Tipado TypeScript Riguroso</div>
+            <p style="font-size: 0.8rem; color: #94a3b8;">Todos los modelos de respuesta están definidos con interfaces TypeScript explícitas con soporte para valores opcionales (<code class="font-mono">?</code>) y <code class="font-mono">null</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SECCIÓN: MODELOS DE DATOS (SCHEMAS) ───────────────────────────── -->
+      <section id="schemas" class="card">
+        <h2 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-cubes" style="color: #818cf8;"></i> Modelos de Datos & Esquemas
+        </h2>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.25rem;">Estructura tipada de las entidades manipuladas por el servidor.</p>
+
+        <!-- Tabs de Modelos -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;" id="schemaTabs">
+          <button class="btn btn-secondary active-schema-tab" data-target="schema-card" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">Card</button>
+          <button class="btn btn-secondary" data-target="schema-price" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">PriceSummary</button>
+          <button class="btn btn-secondary" data-target="schema-inventory" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">InventoryItem</button>
+          <button class="btn btn-secondary" data-target="schema-deck" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">DeckAnalysisResult</button>
+          <button class="btn btn-secondary" data-target="schema-response" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">ApiResponse&lt;T&gt;</button>
+        </div>
+
+        <!-- Schema 1: Card -->
+        <div id="schema-card" class="schema-content">
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copiar</button>
+            <pre><code>interface Card {
+  id: string;              // UUID único interno en Supabase / local
+  tcgplayer_id: number;    // ID numérico de producto en TCGPlayer
+  name: string;            // Nombre de la carta (ej: "Monkey.D.Luffy")
+  set_name: string;        // Nombre del set (ej: "Romance Dawn")
+  set_code: string;        // Código del set (ej: "OP01", "ST01", "EB01", "DON")
+  card_number: string;     // Identificador oficial (ej: "OP01-025", "DON!!")
+  rarity: string;          // Rareza: "L", "SR", "R", "UC", "C", "SEC", "SP", "MANGA", "DON"
+  image_url?: string;      // URL de la imagen local o CDN público
+  tcgplayer_url: string;   // Enlace directo en TCGPlayer
+  created_at: string;      // ISO 8601 timestamp
+  updated_at: string;      // ISO 8601 timestamp
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Schema 2: PriceSummary -->
+        <div id="schema-price" class="schema-content" style="display: none;">
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copiar</button>
+            <pre><code>interface PriceSummary {
+  card: Card;
+  latest_prices: {
+    market_price: number | null;     // Precio de mercado actual en USD
+    low_price: number | null;        // Precio más bajo disponible en USD
+    mid_price: number | null;        // Precio medio disponible en USD
+    high_price: number | null;       // Precio más alto en USD
+    direct_low_price: number | null; // Precio Direct TCGPlayer en USD
+    last_sale_price: number | null;  // Precio de la última venta concretada en USD
+    scraped_at: string;              // Fecha/hora de última actualización
+  } | null;
+  price_analysis: {
+    average_7d: number | null;       // Promedio móvil 7 días
+    average_30d: number | null;      // Promedio móvil 30 días
+    average_90d: number | null;      // Promedio móvil 90 días
+    lowest_7d: number | null;
+    highest_7d: number | null;
+    trend: 'up' | 'down' | 'stable' | 'unknown'; // Tendencia calculada
+    trend_percentage: number | null; // Variación porcentual
+    suggested_price: number | null;  // Precio justo recomendado
+    confidence: 'high' | 'medium' | 'low';
+  };
+  recent_sales: Array<{
+    sale_price: number;
+    sale_date: string;
+    condition: string;
+    scraped_at: string;
+  }>;
+  price_history: Array&lt;PriceSnapshot&gt;;
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Schema 3: InventoryItem -->
+        <div id="schema-inventory" class="schema-content" style="display: none;">
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copiar</button>
+            <pre><code>interface InventoryItem {
+  id: string;                      // Identificador del registro en inventario
+  card_id: string;                 // UUID de la carta asociada en DB
+  card_number: string;             // Ej: "OP01-025"
+  card_name: string;               // Ej: "Roronoa Zoro"
+  set_code: string;                // Ej: "OP01"
+  rarity: string;                  // Ej: "SR"
+  image_url: string | null;
+  tcgplayer_url: string;
+  quantity: number;                // Cantidad de copias en posesión (ej: 4)
+  purchase_price: number;          // Precio de compra unitario en USD
+  condition: string;               // "Near Mint", "Lightly Played", etc.
+  notes: string;                   // Observaciones del coleccionista
+  created_at: string;
+  updated_at: string;
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Schema 4: DeckAnalysisResult -->
+        <div id="schema-deck" class="schema-content" style="display: none;">
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copiar</button>
+            <pre><code>interface DeckAnalysisResult {
+  id?: string;                     // ID del mazo guardado
+  name?: string;                   // Nombre asignado al mazo
+  raw_list: string;                // Texto original pegado
+  total_cards_needed: number;      // Total cartas requeridas (habitual 50 + Líder)
+  total_cards_owned: number;       // Cantidad de cartas presentes en inventario
+  total_cards_missing: number;     // Cantidad de cartas que faltan por comprar
+  completion_percent: number;      // 0 a 100% de armado
+  unique_cards_count: number;
+  unique_complete_count: number;
+  unique_missing_count: number;
+  leader?: {
+    card_number: string;
+    name: string;
+    image_url: string;
+  };
+  cards: Array<{
+    card_number: string;
+    name: string;
+    rarity: string;
+    image_url: string;
+    set_code: string;
+    needed: number;
+    owned: number;
+    missing: number;
+    is_complete: boolean;
+    status: 'complete' | 'partial' | 'missing';
+  }>;
+  missing_cards_text: string;      // Lista en texto plano para exportar o comprar
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Schema 5: ApiResponse -->
+        <div id="schema-response" class="schema-content" style="display: none;">
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i> Copiar</button>
+            <pre><code>interface ApiResponse&lt;T&gt; {
+  success: boolean;       // true si la operación fue exitosa, false si falló
+  data?: T;               // Carga útil de datos devueltos
+  error?: string;         // Mensaje descriptivo si success === false
+  message?: string;       // Mensaje informativo opcional
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SECCIÓN: ENDPOINTS - CARTAS & PRECIOS ────────────────────────── -->
+      <section id="sec-cards" class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: gap;">
+          <h2 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-cards-blank" style="color: #38bdf8;"></i> Cartas, Catálogo & Precios
+          </h2>
+          <span class="badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);">8 Endpoints</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+
+          <!-- Endpoint: GET /api/cards/sets -->
+          <div class="endpoint-card" data-category="cards" data-keywords="get sets expansiones colecciones">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-get">GET</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/sets</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/cards/sets', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Retorna el resumen de todas las expansiones registradas (OP, ST, EB, PRB, DON) con conteo de cartas e imagen de muestra.</p>
+            <div class="code-block">
+              <pre><code>// Respuesta Exitosa 200 OK:
+{
+  "success": true,
+  "data": [
+    {
+      "set_code": "OP01",
+      "set_name": "Romance Dawn",
+      "count": 121,
+      "sample_image": "https://www.optcgapi.com/media/static/Card_Images/OP01-001.jpg"
+    }
+  ]
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint: GET /api/cards/saved -->
+          <div class="endpoint-card" data-category="cards" data-keywords="get saved cartas guardadas filtro rarity set">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-get">GET</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/saved</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;http://localhost:3000/api/cards/saved?set=OP01&amp;rarity=SR&quot;', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Obtiene la lista de cartas almacenadas localmente, con filtros opcionales de expansión y rareza.</p>
+            <table class="schema-table">
+              <thead><tr><th>Parámetro</th><th>Tipo</th><th>Obligatorio</th><th>Descripción</th></tr></thead>
+              <tbody>
+                <tr><td><code>set</code></td><td>string</td><td>No</td><td>Código del set (ej. <code>OP01</code>, <code>DON</code>)</td></tr>
+                <tr><td><code>rarity</code></td><td>string</td><td>No</td><td>Rareza (ej. <code>MANGA</code>, <code>SP</code>, <code>SEC</code>, <code>SR</code>, <code>L-AA</code>)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Endpoint: GET /api/cards/search -->
+          <div class="endpoint-card" data-category="cards" data-keywords="get search buscar cartas nombre codigo">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-get">GET</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/search</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;http://localhost:3000/api/cards/search?q=Luffy&amp;limit=10&quot;', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Búsqueda indexada ultra rápida por nombre o código oficial en la base de datos local.</p>
+            <table class="schema-table">
+              <thead><tr><th>Parámetro</th><th>Tipo</th><th>Obligatorio</th><th>Descripción</th></tr></thead>
+              <tbody>
+                <tr><td><code>q</code></td><td>string</td><td>Sí (min 2 car.)</td><td>Término de búsqueda (ej. <code>OP01-025</code> o <code>Zoro</code>)</td></tr>
+                <tr><td><code>limit</code></td><td>number</td><td>No (default: 500)</td><td>Límite máximo de resultados</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Endpoint: GET /api/cards/tcg-search -->
+          <div class="endpoint-card" data-category="cards" data-keywords="get tcg-search tcgplayer live en vivo">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-get">GET</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/tcg-search</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET &quot;http://localhost:3000/api/cards/tcg-search?q=Nami+OP01&quot;', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Búsqueda en vivo directamente en TCGPlayer mediante scraping (útil si la carta aún no fue agregada a la base de datos).</p>
+          </div>
+
+          <!-- Endpoint: GET /api/cards/:id -->
+          <div class="endpoint-card" data-category="cards" data-keywords="get summary precio tendencias ventas id">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-get">GET</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/:id</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/cards/CARD_UUID', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Retorna el resumen completo del precio de mercado, métricas 7d/30d/90d, sugerencia de valor, histórico y últimas ventas.</p>
+          </div>
+
+          <!-- Endpoint: POST /api/cards/scrape -->
+          <div class="endpoint-card" data-category="cards" data-keywords="post scrape tcgplayer raspar precio actualizar">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-post">POST</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/scrape</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/cards/scrape -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;card_number&quot;: &quot;OP01-025&quot;, &quot;card_name&quot;: &quot;Roronoa Zoro&quot;}&apos;', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Raspa una carta en tiempo real desde TCGPlayer, persiste sus precios y retorna el objeto <code class="font-mono">PriceSummary</code>.</p>
+            <div class="code-block">
+              <pre><code>// Request Body (JSON) - Al menos uno de estos identificadores es requerido:
+{
+  "card_number": "OP01-025",
+  "card_name": "Roronoa Zoro",
+  "url": "https://www.tcgplayer.com/product/453210/...",
+  "tcgplayer_id": 453210
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint: POST /api/cards/:id/refresh -->
+          <div class="endpoint-card" data-category="cards" data-keywords="post refresh refrescar actualizar mercado">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-post">POST</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/cards/:id/refresh</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/cards/CARD_UUID/refresh', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Vuelve a raspar en TCGPlayer una carta existente en la base de datos para refrescar sus precios y registrar una nueva instantánea.</p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ─── SECCIÓN: ENDPOINTS - VISIÓN ARTIFICIAL & OCR (IA) ─────────────── -->
+      <section id="sec-ai" class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+          <h2 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-eye" style="color: #38bdf8;"></i> Reconocimiento & OCR con Inteligencia Artificial
+          </h2>
+          <span class="badge badge-ai">Gemini Vision OCR</span>
+        </div>
+
+        <div class="endpoint-card" data-category="ai" data-keywords="post ai identify reconocer camara ocr imagen gemini">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span class="method-pill method-post">POST</span>
+              <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/ai/identify</span>
+            </div>
+            <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/ai/identify -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;imageBase64&quot;: &quot;data:image/jpeg;base64,...&quot;}&apos;', this)">
+              <i class="fa-regular fa-copy"></i> cURL
+            </button>
+          </div>
+
+          <p style="font-size: 0.82rem; color: #94a3b8;">
+            Analiza una fotografía de una carta física enfocada con la cámara y extrae con alta precisión su código oficial (<code class="font-mono">OP01-025</code>, <code class="font-mono">ST01-001</code>, <code class="font-mono">EB01-006</code>, <code class="font-mono">P-033</code>) o su variante si es una carta <strong>DON!!</strong> (ej: <code class="font-mono">DON!! Luffy</code>, <code class="font-mono">DON!! Yamato</code>).
+          </p>
+
+          <div class="code-block">
+            <pre><code>// Request Body (JSON):
+{
+  "imageBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+}
+
+// Respuesta Exitosa 200 OK:
+{
+  "success": true,
+  "searchString": "OP01-025",
+  "card": {
+    "card_number": "OP01-025",
+    "name": "Roronoa Zoro",
+    "rarity": "SR",
+    "set_code": "OP01",
+    "image_url": "https://www.optcgapi.com/media/static/Card_Images/OP01-025.jpg"
+  }
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SECCIÓN: ENDPOINTS - INVENTARIO ───────────────────────────────── -->
+      <section id="sec-inventory" class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+          <h2 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-box-archive" style="color: #f59e0b;"></i> Inventario Personal
+          </h2>
+          <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">5 Endpoints</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <!-- GET /api/inventory -->
+          <div class="endpoint-card" data-category="inventory" data-keywords="get inventory inventario listar">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-get">GET</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/inventory', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Obtiene todo el inventario con estadísticas agregadas: <code class="font-mono">total_cards</code>, <code class="font-mono">total_investment</code> y <code class="font-mono">unique_cards</code>.</p>
+          </div>
+
+          <!-- POST /api/inventory -->
+          <div class="endpoint-card" data-category="inventory" data-keywords="post inventory registrar agregar carta">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-post">POST</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/inventory -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;card_id&quot;: &quot;UUID&quot;, &quot;quantity&quot;: 2, &quot;purchase_price&quot;: 15.0}&apos;', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Registra una carta en el inventario. Si no se conoce el <code class="font-mono">card_id</code> pero se tiene la URL de TCGPlayer en <code class="font-mono">url</code>, el backend la raspa y la indexa automáticamente.</p>
+          </div>
+
+          <!-- PUT /api/inventory/:id -->
+          <div class="endpoint-card" data-category="inventory" data-keywords="put inventory actualizar modificar">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-put">PUT</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory/:id</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X PUT http://localhost:3000/api/inventory/1 -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;quantity&quot;: 3}&apos;', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Actualiza cantidad, condición, precio de compra o notas de un ítem existente.</p>
+          </div>
+
+          <!-- DELETE /api/inventory/:id -->
+          <div class="endpoint-card" data-category="inventory" data-keywords="delete inventory eliminar">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-delete">DELETE</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/inventory/:id</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X DELETE http://localhost:3000/api/inventory/1', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Elimina un registro del inventario.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SECCIÓN: ENDPOINTS - ANALIZADOR DE DECKS ──────────────────────── -->
+      <section id="sec-decks" class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+          <h2 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-layer-group" style="color: #a855f7;"></i> Analizador & Constructor de Decks
+          </h2>
+          <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">4 Endpoints</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <!-- POST /api/decks/analyze -->
+          <div class="endpoint-card" data-category="decks" data-keywords="post decks analyze analizar optcgsim faltantes">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-post">POST</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/decks/analyze</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X POST http://localhost:3000/api/decks/analyze -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;name&quot;: &quot;Red Zoro&quot;, &quot;text&quot;: &quot;1xST01-001\n4xOP01-025&quot;}&apos;', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Parsea una lista de cartas en texto crudo (formato OPTCGSim, Bandai TCG+ o manual), cruza cada carta contra el inventario y calcula completitud y cartas faltantes.</p>
+            <div class="code-block">
+              <pre><code>// Formato soportado en el campo "text":
+1xOP01-001
+4xOP01-025
+4xST01-006
+2xOP01-029</code></pre>
+            </div>
+          </div>
+
+          <!-- GET /api/decks -->
+          <div class="endpoint-card" data-category="decks" data-keywords="get decks listar mazos guardados">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="method-pill method-get">GET</span>
+                <span class="font-mono" style="font-size: 0.9rem; font-weight: 600; color: #ffffff;">/api/decks</span>
+              </div>
+              <button class="btn btn-secondary" style="font-size: 0.72rem; padding: 0.25rem 0.5rem;" onclick="copyCurl('curl -X GET http://localhost:3000/api/decks', this)">
+                <i class="fa-regular fa-copy"></i> cURL
+              </button>
+            </div>
+            <p style="font-size: 0.82rem; color: #94a3b8;">Obtiene todos los proyectos de decks analizados y guardados en el sistema.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SECCIÓN: RECETAS PARA AGENTES AUTÓNOMOS DE IA ─────────────────── -->
+      <section id="workflows" class="card" style="border-color: rgba(129, 140, 248, 0.3);">
+        <h2 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-wand-magic-sparkles" style="color: #818cf8;"></i> Flujos de Trabajo Recomendados para Agentes de IA
+        </h2>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1.25rem;">
+          Guía paso a paso para que un agente autónomo ejecute tareas complejas coordinando múltiples endpoints.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div style="background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1rem;">
+            <div style="font-weight: 700; color: #38bdf8; font-size: 0.9rem; margin-bottom: 0.5rem;">
+              Receta 1: Consultar precio de carta por nombre o código (ej. "OP01-025" o "Zoro")
+            </div>
+            <ol style="font-size: 0.82rem; color: #cbd5e1; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem;">
+              <li>Ejecutar <code class="font-mono">GET /api/cards/search?q=OP01-025</code>.</li>
+              <li>Si devuelve resultados, tomar el campo <code class="font-mono">id</code> y llamar a <code class="font-mono">GET /api/cards/:id</code>.</li>
+              <li>Leer <code class="font-mono">data.latest_prices.market_price</code> para el valor actual y <code class="font-mono">data.price_analysis.trend</code> para la tendencia.</li>
+              <li>Si la búsqueda no retorna nada, ejecutar <code class="font-mono">POST /api/cards/scrape</code> enviando <code class="font-mono">{"card_number": "OP01-025"}</code> para scrapear en vivo desde TCGPlayer.</li>
+            </ol>
+          </div>
+
+          <div style="background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1rem;">
+            <div style="font-weight: 700; color: #34d399; font-size: 0.9rem; margin-bottom: 0.5rem;">
+              Receta 2: Escanear carta física y agregar copia a mi inventario
+            </div>
+            <ol style="font-size: 0.82rem; color: #cbd5e1; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem;">
+              <li>Tomar foto en Base64 y llamar a <code class="font-mono">POST /api/ai/identify</code> con <code class="font-mono">{"imageBase64": "..."}</code>.</li>
+              <li>Recibir <code class="font-mono">data.searchString</code> (ej: <code class="font-mono">OP05-060</code>).</li>
+              <li>Buscar la carta con <code class="font-mono">GET /api/cards/search?q=OP05-060</code> para obtener su <code class="font-mono">card_id</code>.</li>
+              <li>Registrar en inventario con <code class="font-mono">POST /api/inventory</code> enviando <code class="font-mono">{"card_id": id, "quantity": 1, "condition": "Near Mint"}</code>.</li>
+            </ol>
+          </div>
+
+          <div style="background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1rem;">
+            <div style="font-weight: 700; color: #c084fc; font-size: 0.9rem; margin-bottom: 0.5rem;">
+              Receta 3: Analizar lista de mazo y obtener lista de compras
+            </div>
+            <ol style="font-size: 0.82rem; color: #cbd5e1; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem;">
+              <li>Recibir la lista del usuario en texto (tipo OPTCGSim).</li>
+              <li>Enviar a <code class="font-mono">POST /api/decks/analyze</code> con <code class="font-mono">{"name": "Mi Deck", "text": "..."}</code>.</li>
+              <li>Informar al usuario su <code class="font-mono">completion_percent</code> y entregarle el campo <code class="font-mono">missing_cards_text</code> con las cartas exactas que necesita conseguir.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ─── MODAL: VER RAW JSON SCHEMA ──────────────────────────────────────── -->
+  <div id="jsonModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-code text-sky-400"></i>
+          <span style="font-weight: 700; font-size: 0.95rem; color: white;">OpenAPI / JSON Specification</span>
+        </div>
+        <button id="btnCloseModal" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">&times;</button>
+      </div>
+      <div style="padding: 1rem; overflow-y: auto; flex: 1;">
+        <pre class="font-mono" style="font-size: 0.75rem; color: #38bdf8;" id="modalJsonContent"></pre>
+      </div>
+      <div style="padding: 0.75rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <button id="btnCopyJsonModal" class="btn btn-primary" style="font-size: 0.78rem;">
+          <i class="fa-regular fa-copy"></i> Copiar JSON
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast">
+    <i class="fa-solid fa-circle-check text-sky-400"></i>
+    <span id="toastMsg">Contexto copiado al portapapeles</span>
+  </div>
+
+  <!-- Embedded Machine Specification for programmatic DOM parsing by AI -->
+  <script type="application/json" id="ai-spec-data">
+{
+  "api_name": "One Piece TCG API",
+  "version": "1.0.0",
+  "base_url": "http://localhost:3000",
+  "authentication": "none",
+  "endpoints": [
+    { "method": "GET", "path": "/api/cards/sets", "description": "Lista expansiones oficiales" },
+    { "method": "GET", "path": "/api/cards/saved", "params": ["set", "rarity"], "description": "Obtiene cartas guardadas" },
+    { "method": "GET", "path": "/api/cards/search", "params": ["q", "limit"], "description": "Búsqueda en base de datos" },
+    { "method": "GET", "path": "/api/cards/tcg-search", "params": ["q", "count"], "description": "Búsqueda en vivo en TCGPlayer" },
+    { "method": "GET", "path": "/api/cards/:id", "description": "Resumen completo de precios e histórico" },
+    { "method": "POST", "path": "/api/cards/scrape", "body": ["card_number", "card_name", "url", "tcgplayer_id"], "description": "Scrape en vivo y guardado" },
+    { "method": "POST", "path": "/api/cards/:id/refresh", "description": "Refresca precio de mercado actual" },
+    { "method": "POST", "path": "/api/ai/identify", "body": ["imageBase64"], "description": "Gemini Vision OCR para reconocer código de carta física" },
+    { "method": "GET", "path": "/api/inventory", "description": "Lista inventario con métricas de valor total" },
+    { "method": "POST", "path": "/api/inventory", "body": ["card_id", "quantity", "purchase_price", "condition", "notes"], "description": "Agrega carta a inventario" },
+    { "method": "POST", "path": "/api/decks/analyze", "body": ["name", "text"], "description": "Analiza mazo contra inventario y calcula faltantes" }
+  ]
+}
+  </script>
+
+  <script>
+    // Schema Tabs Switcher
+    const schemaTabs = document.querySelectorAll('#schemaTabs button');
+    schemaTabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        schemaTabs.forEach(b => {
+          b.classList.remove('btn-primary');
+          b.classList.add('btn-secondary');
+        });
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary');
+
+        const targetId = btn.getAttribute('data-target');
+        document.querySelectorAll('.schema-content').forEach(sc => sc.style.display = 'none');
+        const activeContent = document.getElementById(targetId);
+        if (activeContent) activeContent.style.display = 'block';
+      });
+    });
+
+    // Copy Toast Utility
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      toastMsg.textContent = msg || 'Copiado al portapapeles';
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Copy Code Helper
+    function copyCode(btn) {
+      const pre = btn.parentElement.querySelector('pre');
+      if (pre) {
+        navigator.clipboard.writeText(pre.innerText).then(() => {
+          showToast('Código copiado al portapapeles');
+        });
+      }
+    }
+
+    // Copy cURL Helper
+    function copyCurl(curlCmd, btn) {
+      navigator.clipboard.writeText(curlCmd).then(() => {
+        showToast('Comando cURL copiado');
+      });
+    }
+
+    // One-Click "Copiar Contexto para IA" (fetches llms.txt and copies full markdown)
+    document.getElementById('btnCopyPrompt').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/llms.txt');
+        if (res.ok) {
+          const text = await res.text();
+          await navigator.clipboard.writeText(text);
+          showToast('¡Documentación completa (llms.txt) copiada para tu IA!');
+        } else {
+          // Fallback to inline spec if fetch fails
+          const spec = document.getElementById('ai-spec-data').innerText;
+          await navigator.clipboard.writeText(spec);
+          showToast('Especificación JSON copiada para IA');
+        }
+      } catch (err) {
+        showToast('Error al copiar contexto');
+      }
+    });
+
+    // Live search filter in documentation
+    const filterInput = document.getElementById('filterInput');
+    const endpointCards = document.querySelectorAll('.endpoint-card');
+    filterInput.addEventListener('input', (e) => {
+      const val = e.target.value.toLowerCase().trim();
+      endpointCards.forEach(card => {
+        const text = (card.innerText + ' ' + (card.getAttribute('data-keywords') || '')).toLowerCase();
+        if (!val || text.includes(val)) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+
+    // Modal: Raw JSON Specification
+    const jsonModal = document.getElementById('jsonModal');
+    const modalJsonContent = document.getElementById('modalJsonContent');
+    const specRaw = document.getElementById('ai-spec-data').innerText.trim();
+    modalJsonContent.textContent = JSON.stringify(JSON.parse(specRaw), null, 2);
+
+    document.getElementById('btnViewRawJson').addEventListener('click', () => {
+      jsonModal.classList.add('show');
+    });
+    document.getElementById('btnCloseModal').addEventListener('click', () => {
+      jsonModal.classList.remove('show');
+    });
+    document.getElementById('btnCopyJsonModal').addEventListener('click', () => {
+      navigator.clipboard.writeText(modalJsonContent.textContent).then(() => {
+        showToast('JSON copiado al portapapeles');
+      });
+    });
+    jsonModal.addEventListener('click', (e) => {
+      if (e.target === jsonModal) jsonModal.classList.remove('show');
+    });
+  </script>
+</body>
+</html>

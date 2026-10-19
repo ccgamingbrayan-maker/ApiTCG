@@ -1,0 +1,458 @@
+# One Piece TCG API & Market Tracker - AI & LLM Documentation
+> Contexto y especificación técnica de la API de One Piece TCG para Agentes de IA, Modelos de Lenguaje (LLMs) y Desarrolladores.
+
+## Descripción del Proyecto
+One Piece TCG API es un servicio backend en Node.js + Express + TypeScript con base de datos en Supabase (PostgreSQL) y persistencia fallback en JSON local. Permite:
+1. Consultar catálogo de cartas de One Piece Card Game (Bandai) con soporte para expansiones oficiales (OP, ST, EB, PRB, Promos P-xxx y cartas DON!!).
+2. Rastrear precios de mercado en tiempo real, histórico de precios y ventas recientes mediante scraping automatizado de TCGPlayer.
+3. Reconocer cartas físicas mediante fotos o escaneo de cámara usando Gemini Vision OCR (`@google/genai`).
+4. Gestionar inventario de cartas (copias, estados, precios de compra, notas).
+5. Analizar listas de decks (formato texto tipo OPTCGSim) y calcular porcentaje de completitud y cartas faltantes contra el inventario.
+
+---
+
+## Información de Conexión
+- **Base URL Local**: `http://localhost:3000`
+- **Protocolo**: HTTP / JSON REST
+- **Autenticación**: No requiere API Key para llamadas generales (Endpoints públicos).
+- **Content-Type**: `application/json` en endpoints POST/PUT.
+- **CORS**: Habilitado (`*`).
+- **Formato Estándar de Respuesta**:
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "opcional",
+  "error": "mensaje si success es false"
+}
+```
+
+---
+
+## Modelos de Datos (Schemas)
+
+### 1. Card
+```typescript
+interface Card {
+  id: string;              // UUID interno en Supabase
+  tcgplayer_id: number;    // ID numérico del producto en TCGPlayer
+  name: string;            // Nombre de la carta (ej. "Monkey.D.Luffy")
+  set_name: string;        // Nombre del set (ej. "Romance Dawn")
+  set_code: string;        // Código del set (ej. "OP01", "ST01", "EB01", "DON")
+  card_number: string;     // Código identificador oficial (ej. "OP01-025", "DON!!")
+  rarity: string;          // Rareza (ej. "L", "SR", "R", "UC", "C", "SEC", "SP", "MANGA", "DON")
+  image_url?: string;      // URL de la imagen (local o CDN público)
+  tcgplayer_url: string;   // Enlace directo a TCGPlayer
+  created_at: string;      // ISO 8601 timestamp
+  updated_at: string;      // ISO 8601 timestamp
+}
+```
+
+### 2. PriceSnapshot
+```typescript
+interface PriceSnapshot {
+  id: string;
+  card_id: string;
+  market_price: number | null;     // Precio de mercado en USD
+  low_price: number | null;        // Precio más bajo disponible en USD
+  mid_price: number | null;        // Precio medio en USD
+  high_price: number | null;       // Precio más alto en USD
+  direct_low_price: number | null; // Precio directo bajo en USD
+  last_sale_price: number | null;  // Precio de la última venta registrada
+  scraped_at: string;              // ISO 8601 timestamp del scrape
+}
+```
+
+### 3. SaleHistory
+```typescript
+interface SaleHistory {
+  id: string;
+  card_id: string;
+  sale_price: number;              // Precio de venta en USD
+  sale_date: string;               // Fecha de la venta
+  condition: string;               // Condición (ej. "Near Mint", "Lightly Played")
+  scraped_at: string;
+}
+```
+
+### 4. PriceSummary
+```typescript
+interface PriceSummary {
+  card: Card;
+  latest_prices: PriceSnapshot | null;
+  price_analysis: {
+    average_7d: number | null;
+    average_30d: number | null;
+    average_90d: number | null;
+    lowest_7d: number | null;
+    highest_7d: number | null;
+    trend: 'up' | 'down' | 'stable' | 'unknown';
+    trend_percentage: number | null;
+    suggested_price: number | null;
+    confidence: 'high' | 'medium' | 'low';
+  };
+  recent_sales: SaleHistory[];
+  price_history: PriceSnapshot[];
+}
+```
+
+### 5. InventoryItem
+```typescript
+interface InventoryItem {
+  id: string;                      // UUID o ID numérico del registro
+  card_id: string;                 // UUID de la carta asociada
+  card_number: string;             // Ej. "OP01-025"
+  card_name: string;               // Ej. "Roronoa Zoro"
+  set_code: string;                // Ej. "OP01"
+  rarity: string;                  // Ej. "SR"
+  image_url: string | null;
+  tcgplayer_url: string;
+  quantity: number;                // Cantidad de copias en posesión
+  purchase_price: number;          // Costo de compra unitario en USD
+  condition: string;               // "Near Mint", "Lightly Played", etc.
+  notes: string;                   // Comentarios u observaciones
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### 6. DeckAnalysisResult
+```typescript
+interface DeckAnalysisResult {
+  id?: string;
+  name?: string;
+  raw_list: string;
+  total_cards_needed: number;
+  total_cards_owned: number;
+  total_cards_missing: number;
+  completion_percent: number;      // 0 a 100
+  unique_cards_count: number;
+  unique_complete_count: number;
+  unique_missing_count: number;
+  leader?: {
+    card_number: string;
+    name: string;
+    image_url: string;
+  };
+  cards: Array<{
+    card_number: string;
+    name: string;
+    rarity: string;
+    image_url: string;
+    set_code: string;
+    needed: number;
+    owned: number;
+    missing: number;
+    is_complete: boolean;
+    status: 'complete' | 'partial' | 'missing';
+  }>;
+  missing_cards_text: string;
+}
+```
+
+---
+
+## Catálogo de Endpoints
+
+### 1. Cartas & Catálogo
+
+#### `GET /api/cards/sets`
+- **Descripción**: Obtiene la lista de todas las colecciones/expansiones registradas con conteo de cartas e imagen de muestra.
+- **Parámetros**: Ninguno.
+- **Ejemplo cURL**:
+```bash
+curl -X GET http://localhost:3000/api/cards/sets
+```
+- **Respuesta Exitosa (200)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "set_code": "OP01",
+      "set_name": "Romance Dawn",
+      "count": 121,
+      "sample_image": "https://www.optcgapi.com/media/static/Card_Images/OP01-001.jpg"
+    }
+  ]
+}
+```
+
+#### `GET /api/cards/saved`
+- **Descripción**: Obtiene cartas guardadas en base de datos local, filtrables por set y rareza.
+- **Query Params**:
+  - `set` (opcional, string): Código del set (ej. `OP01`, `ST01`, `DON`).
+  - `rarity` (opcional, string): Rareza (ej. `SEC`, `SR`, `MANGA`, `SP`, `L-AA`).
+- **Ejemplo cURL**:
+```bash
+curl -X GET "http://localhost:3000/api/cards/saved?set=OP01&rarity=SR"
+```
+
+#### `GET /api/cards/search`
+- **Descripción**: Búsqueda rápida de cartas ya indexadas en la base de datos por nombre o código.
+- **Query Params**:
+  - `q` (requerido, string): Término de búsqueda (mínimo 2 caracteres). Ej. `Luffy` o `OP01-025`.
+  - `limit` (opcional, number): Máximo de resultados (por defecto `500`).
+- **Ejemplo cURL**:
+```bash
+curl -X GET "http://localhost:3000/api/cards/search?q=Zoro&limit=10"
+```
+
+#### `GET /api/cards/tcg-search`
+- **Descripción**: Búsqueda en vivo directamente raspando los resultados de TCGPlayer (útil cuando una carta no está aún en la DB local).
+- **Query Params**:
+  - `q` (requerido, string): Nombre o código a buscar en TCGPlayer.
+  - `count` (opcional, number): Cantidad máxima de resultados (por defecto `60`).
+- **Ejemplo cURL**:
+```bash
+curl -X GET "http://localhost:3000/api/cards/tcg-search?q=Nami+OP01"
+```
+
+#### `GET /api/cards/:id`
+- **Descripción**: Obtiene el resumen completo de precios, análisis de tendencia, métricas de 7d/30d/90d, ventas recientes e histórico para una carta específica por su ID.
+- **Parámetros de Ruta**:
+  - `id`: UUID de la carta en la base de datos local.
+- **Ejemplo cURL**:
+```bash
+curl -X GET http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01
+```
+
+#### `GET /api/cards/:id/prices`
+- **Descripción**: Histórico de instantáneas de precio para una carta.
+- **Query Params**:
+  - `days` (opcional, number, defecto: `30`): Número de días hacia atrás.
+- **Ejemplo cURL**:
+```bash
+curl -X GET "http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/prices?days=60"
+```
+
+#### `GET /api/cards/:id/sales`
+- **Descripción**: Registro de ventas reales recientes reportadas por TCGPlayer.
+- **Query Params**:
+  - `days` (opcional, number, defecto: `30`): Número de días hacia atrás.
+- **Ejemplo cURL**:
+```bash
+curl -X GET "http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/sales?days=15"
+```
+
+#### `POST /api/cards/scrape`
+- **Descripción**: Raspa en tiempo real una carta de TCGPlayer, guarda sus datos y precios en Supabase/local y retorna su resumen completo de precios.
+- **Body (JSON)**:
+```json
+{
+  "url": "https://www.tcgplayer.com/product/453210/one-piece-card-game-romance-dawn-roronoa-zoro",
+  "tcgplayer_id": 453210,
+  "card_id": "opcional-uuid",
+  "card_number": "OP01-025",
+  "card_name": "Roronoa Zoro",
+  "rarity": "SR",
+  "set_code": "OP01",
+  "set_name": "Romance Dawn"
+}
+```
+*Nota: Debe proveerse al menos uno de: `url`, `tcgplayer_id`, `card_id` o `card_number`.*
+- **Ejemplo cURL**:
+```bash
+curl -X POST http://localhost:3000/api/cards/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"card_number": "OP01-025", "card_name": "Roronoa Zoro"}'
+```
+
+#### `POST /api/cards/:id/refresh`
+- **Descripción**: Vuelve a raspar en TCGPlayer la carta indicada para refrescar sus precios de mercado actuales.
+- **Parámetros de Ruta**:
+  - `id`: UUID de la carta en la base de datos.
+- **Ejemplo cURL**:
+```bash
+curl -X POST http://localhost:3000/api/cards/3e09848f-ef87-4384-95a2-f8c5b6ff4f01/refresh
+```
+
+---
+
+### 2. Visión Artificial & Reconocimiento (IA)
+
+#### `POST /api/ai/identify`
+- **Descripción**: Identifica mediante Gemini Vision OCR el código oficial de la carta a partir de una imagen Base64 (capturada por cámara o subida por archivo).
+- **Body (JSON)**:
+```json
+{
+  "imageBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+}
+```
+- **Respuesta Exitosa (200)**:
+```json
+{
+  "success": true,
+  "searchString": "OP01-025",
+  "card": {
+    "card_number": "OP01-025",
+    "name": "Roronoa Zoro",
+    "rarity": "SR",
+    "set_code": "OP01",
+    "image_url": "https://www.optcgapi.com/media/static/Card_Images/OP01-025.jpg"
+  }
+}
+```
+*Si la carta es tipo DON!! reconoce variantes como `DON!! Luffy`, `DON!! Yamato` o `DON!!` estándar.*
+
+---
+
+### 3. Inventario Personal
+
+#### `GET /api/inventory`
+- **Descripción**: Obtiene la lista completa de cartas en el inventario personal con métricas globales: total de cartas, valor total invertido y cartas únicas.
+- **Ejemplo cURL**:
+```bash
+curl -X GET http://localhost:3000/api/inventory
+```
+- **Respuesta Exitosa (200)**:
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "1",
+        "card_id": "3e09848f-ef87-4384-95a2-f8c5b6ff4f01",
+        "card_number": "OP01-025",
+        "card_name": "Roronoa Zoro",
+        "set_code": "OP01",
+        "rarity": "SR",
+        "quantity": 2,
+        "purchase_price": 14.5,
+        "condition": "Near Mint",
+        "notes": "Playset principal"
+      }
+    ],
+    "total_cards": 2,
+    "total_investment": 29.0,
+    "unique_cards": 1
+  }
+}
+```
+
+#### `GET /api/inventory/card/:cardId`
+- **Descripción**: Consulta todas las copias registradas de una carta específica en el inventario.
+- **Ejemplo cURL**:
+```bash
+curl -X GET http://localhost:3000/api/inventory/card/3e09848f-ef87-4384-95a2-f8c5b6ff4f01
+```
+
+#### `POST /api/inventory`
+- **Descripción**: Registra una nueva carta o copia en el inventario. Si no se conoce el `card_id`, puede enviarse la `url` de TCGPlayer y el sistema la raspará automáticamente antes de guardarla.
+- **Body (JSON)**:
+```json
+{
+  "card_id": "3e09848f-ef87-4384-95a2-f8c5b6ff4f01",
+  "quantity": 1,
+  "purchase_price": 12.00,
+  "condition": "Near Mint",
+  "notes": "Comprada en tienda local"
+}
+```
+- **Ejemplo cURL**:
+```bash
+curl -X POST http://localhost:3000/api/inventory \
+  -H "Content-Type: application/json" \
+  -d '{"card_id": "3e09848f-ef87-4384-95a2-f8c5b6ff4f01", "quantity": 1, "purchase_price": 12.00, "condition": "Near Mint"}'
+```
+
+#### `PUT /api/inventory/:id`
+- **Descripción**: Actualiza cantidad, precio de compra, condición o notas de un registro del inventario.
+- **Body (JSON)**:
+```json
+{
+  "quantity": 3,
+  "purchase_price": 11.50,
+  "condition": "Near Mint",
+  "notes": "Actualizado"
+}
+```
+- **Ejemplo cURL**:
+```bash
+curl -X PUT http://localhost:3000/api/inventory/1 \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 3}'
+```
+
+#### `DELETE /api/inventory/:id`
+- **Descripción**: Elimina un registro del inventario.
+- **Ejemplo cURL**:
+```bash
+curl -X DELETE http://localhost:3000/api/inventory/1
+```
+
+---
+
+### 4. Gestor & Analizador de Decks
+
+#### `POST /api/decks/analyze`
+- **Descripción**: Analiza un mazo a partir de una lista en texto plano (como la exportada por OPTCGSim o Bandai TCG+), cruza cada carta contra el inventario y calcula las cartas faltantes y el porcentaje de completitud.
+- **Formato del texto soportado**:
+  - `4xOP01-025`
+  - `4 OP01-025`
+  - `1xST01-001 (L)`
+- **Body (JSON)**:
+```json
+{
+  "name": "Red Zoro Aggro",
+  "text": "1xST01-001\n4xOP01-025\n4xST01-006\n2xOP01-029"
+}
+```
+- **Ejemplo cURL**:
+```bash
+curl -X POST http://localhost:3000/api/decks/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Red Zoro", "text": "1xST01-001\n4xOP01-025"}'
+```
+
+#### `GET /api/decks`
+- **Descripción**: Devuelve todos los proyectos de decks guardados localmente.
+- **Ejemplo cURL**:
+```bash
+curl -X GET http://localhost:3000/api/decks
+```
+
+#### `POST /api/decks`
+- **Descripción**: Guarda o actualiza un proyecto de mazo analizado.
+- **Body (JSON)**: Objeto de tipo `DeckAnalysisResult`.
+
+#### `DELETE /api/decks/:id`
+- **Descripción**: Elimina un proyecto de deck guardado.
+
+---
+
+### 5. Utilidades y Proxies
+
+#### `GET /images/cards/:filename`
+- **Descripción**: Entrega la imagen local de la carta o redirige en 302 hacia el CDN oficial de One Piece TCG / Supabase Storage.
+
+#### `GET /api/proxy-image?url=<encoded_url>`
+- **Descripción**: Proxy de descarga de imágenes para evitar bloqueos por CORS en `<canvas>` (ej. al exportar visualizaciones gráficas de mazos).
+
+---
+
+## Flujos de Trabajo Recomendados para Agentes de IA
+
+### Flujo 1: Obtener precio de mercado de una carta a partir de su código
+1. El usuario dice: *"¿Cuánto cuesta la carta OP01-025?"*
+2. Agente llama a: `GET /api/cards/search?q=OP01-025`
+3. Si existe en la lista, toma `id` y consulta: `GET /api/cards/:id`
+4. Lee el valor `data.latest_prices.market_price` y `data.price_analysis.trend`.
+5. Si no existe, invoca: `POST /api/cards/scrape` con `{"card_number": "OP01-025"}` para buscarla y agregarla en vivo.
+
+### Flujo 2: Identificar carta escaneada y guardar en inventario
+1. El usuario toma una foto y se envía a: `POST /api/ai/identify` con `{ imageBase64 }`.
+2. Se obtiene el código oficial identificado (ej: `OP05-060`).
+3. Se busca en la DB: `GET /api/cards/search?q=OP05-060`.
+4. Con el `card_id`, se guarda en inventario: `POST /api/inventory` con `{ "card_id": id, "quantity": 1 }`.
+
+### Flujo 3: Evaluar qué cartas faltan para armar un mazo
+1. El usuario comparte su lista de deck:
+```
+1xOP01-001
+4xOP01-025
+4xOP01-016
+```
+2. Agente llama a: `POST /api/decks/analyze` con `{ "name": "Deck Test", "text": list }`.
+3. Devuelve `completion_percent`, lista de cartas con estado `missing` o `partial`, y `missing_cards_text` formateado para comprar en TCGPlayer o intercambiar.

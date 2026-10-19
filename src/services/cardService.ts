@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 import { Card, PriceSnapshot, SaleHistory, PriceSummary, ScrapedCardData, SetSummary } from '../types';
 import { classifyCardRarity } from '../utils/rarityUtils';
+import { getPromoStorageUrl } from '../utils/promoMap';
 
 import fs from 'fs';
 import path from 'path';
@@ -96,6 +97,9 @@ export function resolveCardImageUrl(
     if (cardNumber && /^don_(\d+)/i.test(cardNumber)) {
       return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${cardNumber.toLowerCase()}.jpg`;
     }
+    if (cardNumber && cardNumber.toUpperCase().startsWith('P-')) {
+      return getPromoStorageUrl(cardNumber);
+    }
     if (cardNumber && /^[A-Z]{1,3}\d{2}-\d{3}/i.test(cardNumber)) {
       const suffix = isAA ? '_p1' : '';
       return `https://www.optcgapi.com/media/static/Card_Images/${cardNumber}${suffix}.jpg`;
@@ -149,7 +153,7 @@ export function resolveCardImageUrl(
     const baseCodeMatch = cleanName.match(/^([A-Z0-9]+-[A-Z0-9]+)/i);
     const baseCode = baseCodeMatch ? baseCodeMatch[1].toUpperCase() : cleanName.split('_')[0].toUpperCase();
     if (baseCode.startsWith('P-')) {
-      return `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.jpg`;
+      return getPromoStorageUrl(cleanName);
     }
 
     // 6. One Piece card (preservando o deduciendo sufijo de variante _p1, _p2, _r1, etc.)
@@ -414,32 +418,61 @@ export async function searchCards(query: string, limit: number = 500): Promise<C
     }));
   }
 
-  let reqQuery = supabase
-    .from('cards')
-    .select('*');
-
+  // Paso 1: Búsqueda específica por nombre de personaje / carta y número de carta
+  let nameQuery = supabase.from('cards').select('*');
   for (const w of words) {
     const lower = w.toLowerCase();
     if (lower === 'manga') {
-      reqQuery = reqQuery.eq('rarity', 'MANGA');
+      nameQuery = nameQuery.eq('rarity', 'MANGA');
     } else if (lower === 'sp' || lower === 'spr') {
-      reqQuery = reqQuery.eq('rarity', 'SP');
+      nameQuery = nameQuery.eq('rarity', 'SP');
     } else if (lower === 'lider' || lower === 'leader') {
-      reqQuery = reqQuery.or('rarity.eq.L,rarity.eq.L-AA,name.ilike.%leader%');
+      nameQuery = nameQuery.or('rarity.eq.L,rarity.eq.L-AA,name.ilike.%leader%');
     } else if (lower === 'aa' || lower === 'parallel') {
-      reqQuery = reqQuery.or('rarity.ilike.%AA%,name.ilike.%parallel%,name.ilike.%alternate art%');
+      nameQuery = nameQuery.or('rarity.ilike.%AA%,name.ilike.%parallel%,name.ilike.%alternate art%');
+    } else if (/^(OP|ST|EB|PRB)\d{2}/i.test(w)) {
+      nameQuery = nameQuery.or(`card_number.ilike.%${w}%,set_code.ilike.%${w}%`);
     } else {
-      reqQuery = reqQuery.or(`name.ilike.%${w}%,card_number.ilike.%${w}%,set_name.ilike.%${w}%,set_code.ilike.%${w}%`);
+      nameQuery = nameQuery.or(`name.ilike.%${w}%,card_number.ilike.%${w}%`);
     }
   }
 
-  const { data, error } = await reqQuery
+  const { data: nameCards, error: nameErr } = await nameQuery
     .order('rarity', { ascending: true })
     .order('card_number', { ascending: true })
     .limit(limit);
 
-  if (error) throw new Error(`[DB] searchCards error: ${error.message}`);
-  return ((data ?? []) as Card[]).map(c => ({
+  if (!nameErr && nameCards && nameCards.length > 0) {
+    return (nameCards as Card[]).map(c => ({
+      ...c,
+      image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
+    }));
+  }
+
+  // Paso 2: Si no hubo coincidencias directas por nombre de carta, buscar por colección (ej: "Romance Dawn", "Two Legends")
+  let setQuery = supabase.from('cards').select('*');
+  for (const w of words) {
+    const lower = w.toLowerCase();
+    if (lower === 'manga') {
+      setQuery = setQuery.eq('rarity', 'MANGA');
+    } else if (lower === 'sp' || lower === 'spr') {
+      setQuery = setQuery.eq('rarity', 'SP');
+    } else if (lower === 'lider' || lower === 'leader') {
+      setQuery = setQuery.or('rarity.eq.L,rarity.eq.L-AA,name.ilike.%leader%');
+    } else if (lower === 'aa' || lower === 'parallel') {
+      setQuery = setQuery.or('rarity.ilike.%AA%,name.ilike.%parallel%,name.ilike.%alternate art%');
+    } else {
+      setQuery = setQuery.or(`set_name.ilike.%${w}%,set_code.ilike.%${w}%`);
+    }
+  }
+
+  const { data: setCards, error: setErr } = await setQuery
+    .order('rarity', { ascending: true })
+    .order('card_number', { ascending: true })
+    .limit(limit);
+
+  if (setErr) throw new Error(`[DB] searchCards error: ${setErr.message}`);
+  return ((setCards ?? []) as Card[]).map(c => ({
     ...c,
     image_url: resolveCardImageUrl(c.image_url, c.card_number, c.set_code, c.rarity, c.name)
   }));

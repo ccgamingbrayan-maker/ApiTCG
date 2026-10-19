@@ -10,6 +10,7 @@ import { aiRouter } from './routes/ai';
 import { inventoryRouter } from './routes/inventory';
 import { decksRouter } from './routes/decks';
 import { resolveCardImageUrl } from './services/cardService';
+import { getPromoStorageUrl } from './utils/promoMap';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
@@ -40,9 +41,10 @@ app.get('/images/cards/:filename', (req: Request, res: Response) => {
   const baseCodeMatch = cleanName.match(/^([A-Z0-9]+-[A-Z0-9]+)/i);
   const baseCode = baseCodeMatch ? baseCodeMatch[1].toUpperCase() : cleanName.split('_')[0].toUpperCase();
 
-  // Si es promocional P-xxx, redirigir a Supabase Storage público donde están las imágenes base
+  // Si es promocional P-xxx, redirigir a Supabase Storage público con su extensión correcta (.png o .jpg o nombre de variante)
   if (baseCode.startsWith('P-')) {
-    return res.redirect(302, `https://epuskceyfpbdljmwvcca.supabase.co/storage/v1/object/public/cards/${baseCode}.jpg`);
+    const promoUrl = getPromoStorageUrl(cleanName);
+    return res.redirect(302, promoUrl);
   }
 
   // Si es carta de set (OP, ST, EB, PRB), redirigir a la imagen base correspondiente a su propio código
@@ -60,6 +62,60 @@ app.get('/images/cards/:filename', (req: Request, res: Response) => {
 
 // Serve static frontend
 app.use(express.static(path.join(__dirname, '../public')));
+
+// ─── Documentation Routes (AI & Developers) ──────────────────────────────────
+app.get('/docs', (_req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/docs.html'));
+});
+
+app.get('/llms.txt', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.sendFile(path.join(__dirname, '../public/llms.txt'));
+});
+
+app.get('/api/docs', (_req: Request, res: Response) => {
+  res.json({
+    name: 'One Piece TCG API',
+    version: '1.0.0',
+    description: 'API for One Piece TCG price tracking, market analysis, card OCR with Gemini AI, inventory management, and deck building.',
+    base_url: 'http://localhost:3000',
+    documentation_url: '/docs',
+    llms_txt_url: '/llms.txt',
+    endpoints: {
+      cards: [
+        { method: 'GET', path: '/api/cards/sets', description: 'List all official card sets with card counts' },
+        { method: 'GET', path: '/api/cards/saved', query: { set: 'optional string', rarity: 'optional string' }, description: 'Get saved cards in DB' },
+        { method: 'GET', path: '/api/cards/search', query: { q: 'required string (min 2 chars)', limit: 'optional number' }, description: 'Fast DB card search' },
+        { method: 'GET', path: '/api/cards/tcg-search', query: { q: 'required string', count: 'optional number' }, description: 'Live TCGPlayer search scrape' },
+        { method: 'GET', path: '/api/cards/:id', description: 'Complete price summary, 7d/30d/90d metrics, sales history' },
+        { method: 'GET', path: '/api/cards/:id/prices', query: { days: 'optional number (default 30)' }, description: 'Price snapshots history' },
+        { method: 'GET', path: '/api/cards/:id/sales', query: { days: 'optional number (default 30)' }, description: 'Sales history' },
+        { method: 'POST', path: '/api/cards/scrape', body: { card_number: 'string', card_name: 'string', url: 'string', tcgplayer_id: 'number' }, description: 'Live scrape from TCGPlayer and store in DB' },
+        { method: 'POST', path: '/api/cards/:id/refresh', description: 'Re-scrape current market price for existing card' }
+      ],
+      ai: [
+        { method: 'POST', path: '/api/ai/identify', body: { imageBase64: 'string (base64 image)' }, description: 'Recognize card number or DON!! variant from camera photo using Gemini Vision OCR' }
+      ],
+      inventory: [
+        { method: 'GET', path: '/api/inventory', description: 'Get all user inventory items with total value metrics' },
+        { method: 'GET', path: '/api/inventory/card/:cardId', description: 'Get copies of specific card in inventory' },
+        { method: 'POST', path: '/api/inventory', body: { card_id: 'string', quantity: 'number', purchase_price: 'number', condition: 'string', notes: 'string', url: 'optional auto-scrape url' }, description: 'Add card copies to inventory' },
+        { method: 'PUT', path: '/api/inventory/:id', body: { quantity: 'number', purchase_price: 'number', condition: 'string', notes: 'string' }, description: 'Update inventory record' },
+        { method: 'DELETE', path: '/api/inventory/:id', description: 'Delete inventory record' }
+      ],
+      decks: [
+        { method: 'POST', path: '/api/decks/analyze', body: { text: 'string (OPTCGSim card list)', name: 'optional string' }, description: 'Analyze deck list against user inventory and compute missing cards' },
+        { method: 'GET', path: '/api/decks', description: 'List saved deck projects' },
+        { method: 'POST', path: '/api/decks', body: 'DeckAnalysisResult object', description: 'Save or update deck project' },
+        { method: 'DELETE', path: '/api/decks/:id', description: 'Delete deck project' }
+      ],
+      utilities: [
+        { method: 'GET', path: '/images/cards/:filename', description: 'Card image fallback resolver' },
+        { method: 'GET', path: '/api/proxy-image', query: { url: 'required string' }, description: 'Image proxy for canvas deck export' }
+      ]
+    }
+  });
+});
 
 app.use('/api/cards', cardsRouter);
 app.use('/api/ai', aiRouter);
